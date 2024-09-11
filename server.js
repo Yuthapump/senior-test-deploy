@@ -7,7 +7,7 @@ const { connectDB } = require("./config/db"); // การเชื่อมต�
 const privacyRoutes = require("./routes/privacyRoutes");
 
 const app = express();
-const port = process.env.PORT || 3306; // ใช้ PORT จาก environment หรือ 3000
+const port = process.env.PORT;
 
 // Middleware
 app.use(bodyParser.json());

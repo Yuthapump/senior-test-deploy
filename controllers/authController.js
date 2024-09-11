@@ -11,6 +11,7 @@ const connection = connectDB(); // connect to DB
 
 // register function
 const register = async (req, res) => {
+  console.log("Request Body:", req.body);
   const { userName, email, password, phoneNumber, role, privacy } = req.body;
 
   // check data
@@ -134,16 +135,12 @@ const login = async (req, res) => {
   }
 };
 
-// Set up multer for file uploads
-const upload = multer({
-  dest: "uploads/", // Directory to save uploaded files
-  limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size (5MB)
-});
-
 // AddChild function with file handling
 const addChild = async (req, res) => {
+  console.log("Request Body:", req.body);
+  console.log("Uploaded File:", req.file);
   const { childName, nickname, birthday, gender, parent_id } = req.body;
-  const childPic = req.file; // File from multer
+  const childPic = req.file; // File from multer, may be undefined if no file is uploaded
 
   // Basic input validation
   if (!childName || !birthday || !parent_id) {
@@ -164,7 +161,7 @@ const addChild = async (req, res) => {
       return res.status(409).json({ message: "Child already exists" });
     }
 
-    // Handle file upload
+    // Handle file upload (if provided)
     let childPicUrl = null;
     if (childPic) {
       // Save file to a directory or cloud storage
@@ -175,14 +172,14 @@ const addChild = async (req, res) => {
 
     // Insert new child record
     const insertQuery =
-      "INSERT INTO children (childName, nickname, birthday, gender, parent_id, childPic) VALUES (?, ?, ?, ?, ?, ?)";
-    await db.query(insertQuery, [
+      "INSERT INTO children (childName, nickname, birthday, gender, parent_id) VALUES ( ?, ?, ?, ?, ?)";
+    await connection.query(insertQuery, [
       childName,
       nickname,
       birthday,
       gender,
       parent_id,
-      childPicUrl, // Insert file path or URL
+      //childPicUrl, // Insert file path or URL, or null if no file
     ]);
 
     return res.status(201).json({ message: "Child added successfully" });
@@ -192,7 +189,13 @@ const addChild = async (req, res) => {
   }
 };
 
-// Apply multer middleware to handle file uploads
+// Apply multer middleware to handle file uploads, allow requests without file
+const upload = multer({
+  dest: "uploads/",
+  limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size (5MB)
+});
+
+// Apply multer to addChild route
 app.post("/api/auth/addChild", upload.single("childPic"), addChild);
 
 module.exports = { register, login, addChild };
