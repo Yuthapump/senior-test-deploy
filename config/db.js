@@ -12,17 +12,16 @@ const connectDB = () => {
     connectTimeout: 10000, // for Test
   });*/
 
-  const connection = mysql.createConnection(process.env.DB_URL);
+  try {
+    // สร้างการเชื่อมต่อกับฐานข้อมูล
+    const connection = mysql.createConnection(process.env.DB_URL);
 
-  connection.connect((err) => {
-    if (err) {
-      console.error("Error connecting to MySQL:", err);
-      process.exit(1); // ออกจากโปรแกรมเมื่อเกิดข้อผิดพลาดในการเชื่อมต่อ
-    }
     console.log("Connected to MySQL");
-  });
-
-  return connection;
+    return connection;
+  } catch (err) {
+    console.error("Error connecting to MySQL:", err);
+    process.exit(1); // ออกจากโปรแกรมเมื่อเกิดข้อผิดพลาดในการเชื่อมต่อ
+  }
 };
 
 module.exports = { connectDB };
