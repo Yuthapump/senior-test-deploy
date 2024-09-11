@@ -11,10 +11,8 @@ const connection = connectDB(); // connect to DB
 
 // register function
 const register = async (req, res) => {
-  console.log("Request Body:", req.body);
   const { userName, email, password, phoneNumber, role, privacy } = req.body;
 
-  // check data
   if (!userName || !password) {
     return res
       .status(400)
@@ -22,50 +20,38 @@ const register = async (req, res) => {
   }
 
   try {
-    // check existingUsers
-    const existingUsers = await new Promise((resolve, reject) => {
-      connection.query(
-        "SELECT * FROM users WHERE username = ?", // เปลี่ยน userName เป็น username เพื่อให้ตรงกับชื่อคอลัมน์
-        [userName],
-        (err, results) => {
-          if (err) return reject(err);
-          resolve(results);
-        }
-      );
-    });
+    const connection = await connectDB(); // ใช้ async/await เพื่อรอการเชื่อมต่อฐานข้อมูล
 
-    console.log("Existing users:", existingUsers); // เพิ่มการพิมพ์ผลลัพธ์
+    // ตรวจสอบผู้ใช้ที่มีอยู่แล้ว
+    const [existingUsers] = await connection.execute(
+      "SELECT * FROM users WHERE username = ?",
+      [userName]
+    );
 
-    if (Array.isArray(existingUsers) && existingUsers.length > 0) {
+    if (existingUsers.length > 0) {
       return res
         .status(409)
         .json({ success: false, message: "User already exists" });
     }
 
-    // hashedPassword
+    // เข้ารหัสรหัสผ่าน
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Add new user
-    await new Promise((resolve, reject) => {
-      connection.query(
-        "INSERT INTO users (username, email, password, phoneNumber, role, privacy) VALUES (?, ?, ?, ?, ?, ?)",
-        [userName, email, hashedPassword, phoneNumber, role, privacy],
-        (err) => {
-          if (err) return reject(err);
-          resolve();
-        }
-      );
-    });
-    // Generate JWT token
+    // เพิ่มผู้ใช้ใหม่
+    await connection.execute(
+      "INSERT INTO users (username, email, password, phoneNumber, role, privacy) VALUES (?, ?, ?, ?, ?, ?)",
+      [userName, email, hashedPassword, phoneNumber, role, privacy]
+    );
+
+    // สร้าง JWT token
     const token = jwt.sign({ userName, role }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
 
-    // Return success response with the token
     return res.status(201).json({
       success: true,
       message: "Registration successful",
-      token, // include the generated token in the response
+      token,
       role,
     });
   } catch (error) {
@@ -85,7 +71,7 @@ const login = async (req, res) => {
   }
 
   try {
-    connection.query(
+    connection.execute(
       "SELECT * FROM users WHERE userName = ?",
       [userName],
       async (err, results) => {
@@ -137,50 +123,31 @@ const login = async (req, res) => {
 
 // AddChild function with file handling
 const addChild = async (req, res) => {
-  console.log("Request Body:", req.body);
-  console.log("Uploaded File:", req.file);
   const { childName, nickname, birthday, gender, parent_id } = req.body;
-  const childPic = req.file; // File from multer, may be undefined if no file is uploaded
+  const childPic = req.file;
 
-  // Basic input validation
   if (!childName || !birthday || !parent_id) {
     return res.status(400).json({ message: "Required fields are missing" });
   }
 
-  // Check if the child already exists
-  const checkQuery =
-    "SELECT * FROM children WHERE childName = ? AND birthday = ? AND parent_id = ?";
   try {
-    const [existingChild] = await connection.query(checkQuery, [
-      childName,
-      birthday,
-      parent_id,
-    ]);
+    const connection = await connectDB(); // ใช้การเชื่อมต่อฐานข้อมูล
+
+    // ตรวจสอบว่ามีเด็กในระบบแล้วหรือไม่
+    const [existingChild] = await connection.execute(
+      "SELECT * FROM children WHERE childName = ? AND birthday = ? AND parent_id = ?",
+      [childName, birthday, parent_id]
+    );
 
     if (existingChild.length > 0) {
       return res.status(409).json({ message: "Child already exists" });
     }
 
-    // Handle file upload (if provided)
-    let childPicUrl = null;
-    if (childPic) {
-      // Save file to a directory or cloud storage
-      const filePath = path.join(__dirname, "uploads", childPic.filename);
-      fs.renameSync(childPic.path, filePath); // Move file to correct location
-      childPicUrl = filePath; // Save file path or URL to the database
-    }
-
-    // Insert new child record
-    const insertQuery =
-      "INSERT INTO children (childName, nickname, birthday, gender, parent_id) VALUES ( ?, ?, ?, ?, ?)";
-    await connection.query(insertQuery, [
-      childName,
-      nickname,
-      birthday,
-      gender,
-      parent_id,
-      //childPicUrl, // Insert file path or URL, or null if no file
-    ]);
+    // เพิ่มข้อมูลเด็กใหม่
+    await connection.execute(
+      "INSERT INTO children (childName, nickname, birthday, gender, parent_id) VALUES (?, ?, ?, ?, ?)",
+      [childName, nickname, birthday, gender, parent_id]
+    );
 
     return res.status(201).json({ message: "Child added successfully" });
   } catch (err) {
