@@ -151,7 +151,7 @@ const addChild = async (req, res) => {
   const checkQuery =
     "SELECT * FROM children WHERE childName = ? AND birthday = ? AND parent_id = ?";
   try {
-    const [existingChild] = await db.query(checkQuery, [
+    const [existingChild] = await connection.query(checkQuery, [
       childName,
       birthday,
       parent_id,
