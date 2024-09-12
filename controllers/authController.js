@@ -2,8 +2,6 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { connectDB } = require("../config/db");
 
-const connection = connectDB(); // connect to DB
-
 // register function
 const register = async (req, res) => {
   console.log("Users Data: ", req.body);
@@ -58,6 +56,7 @@ const register = async (req, res) => {
 
 // login function
 const login = async (req, res) => {
+  console.log("Login Data: ", req.body);
   const { userName, password } = req.body;
 
   if (!userName || !password) {
@@ -67,52 +66,53 @@ const login = async (req, res) => {
   }
 
   try {
-    connection.execute(
+    const connection = await connectDB(); // ใช้ mysql2/promise เพื่อเชื่อมต่อฐานข้อมูล
+
+    // ดำเนินการค้นหาผู้ใช้
+    const [results] = await connection.execute(
       "SELECT * FROM users WHERE userName = ?",
-      [userName],
-      async (err, results) => {
-        if (err) {
-          return res
-            .status(500)
-            .json({ success: false, message: "Server error" });
-        }
-
-        if (results.length > 0) {
-          const user = results[0];
-          console.log("User:", user); // ตรวจสอบข้อมูลของ user
-          const match = await bcrypt.compare(password, user.password);
-
-          if (match) {
-            if (user.role) {
-              const token = jwt.sign(
-                { userId: user.id, role: user.role },
-                process.env.JWT_SECRET,
-                {
-                  expiresIn: "1h",
-                }
-              );
-              return res.status(200).json({
-                success: true,
-                token,
-                userId: user.id,
-                role: user.role,
-                message: "Login successful",
-              });
-            } else {
-              return res.status(401).json({
-                success: false,
-                message: "Invalid username or password",
-              });
-            }
-          }
-        } else {
-          return res
-            .status(401)
-            .json({ success: false, message: "Invalid username or password" });
-        }
-      }
+      [userName]
     );
+
+    if (results.length > 0) {
+      const user = results[0];
+      console.log("User:", user); // ตรวจสอบข้อมูลของ user
+      const match = await bcrypt.compare(password, user.password);
+
+      if (match) {
+        if (user.role) {
+          const token = jwt.sign(
+            { userId: user.id, role: user.role },
+            process.env.JWT_SECRET,
+            {
+              expiresIn: "1h",
+            }
+          );
+          return res.status(200).json({
+            success: true,
+            token,
+            userId: user.id,
+            role: user.role,
+            message: "Login successful",
+          });
+        } else {
+          return res.status(401).json({
+            success: false,
+            message: "Invalid username or password",
+          });
+        }
+      } else {
+        return res
+          .status(401)
+          .json({ success: false, message: "Invalid username or password" });
+      }
+    } else {
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid username or password" });
+    }
   } catch (error) {
+    console.error("Server error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
