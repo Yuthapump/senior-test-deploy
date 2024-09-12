@@ -1,16 +1,12 @@
 const bcrypt = require("bcryptjs");
-const express = require("express");
 const jwt = require("jsonwebtoken");
 const { connectDB } = require("../config/db");
-const path = require("path");
-const fs = require("fs");
-const multer = require("multer");
 
-const app = express();
 const connection = connectDB(); // connect to DB
 
 // register function
 const register = async (req, res) => {
+  console.log("Users Data: ", req.body);
   const { userName, email, password, phoneNumber, role, privacy } = req.body;
 
   if (!userName || !password) {
@@ -121,48 +117,4 @@ const login = async (req, res) => {
   }
 };
 
-// AddChild function with file handling
-const addChild = async (req, res) => {
-  const { childName, nickname, birthday, gender, parent_id } = req.body;
-  const childPic = req.file;
-
-  if (!childName || !birthday || !parent_id) {
-    return res.status(400).json({ message: "Required fields are missing" });
-  }
-
-  try {
-    const connection = await connectDB(); // ใช้การเชื่อมต่อฐานข้อมูล
-
-    // ตรวจสอบว่ามีเด็กในระบบแล้วหรือไม่
-    const [existingChild] = await connection.execute(
-      "SELECT * FROM children WHERE childName = ? AND birthday = ? AND parent_id = ?",
-      [childName, birthday, parent_id]
-    );
-
-    if (existingChild.length > 0) {
-      return res.status(409).json({ message: "Child already exists" });
-    }
-
-    // เพิ่มข้อมูลเด็กใหม่
-    await connection.execute(
-      "INSERT INTO children (childName, nickname, birthday, gender, parent_id) VALUES (?, ?, ?, ?, ?)",
-      [childName, nickname, birthday, gender, parent_id]
-    );
-
-    return res.status(201).json({ message: "Child added successfully" });
-  } catch (err) {
-    console.error("Error inserting data:", err);
-    return res.status(500).json({ message: "Error adding child" });
-  }
-};
-
-// Apply multer middleware to handle file uploads, allow requests without file
-const upload = multer({
-  dest: "uploads/",
-  limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size (5MB)
-});
-
-// Apply multer to addChild route
-app.post("/api/auth/addChild", upload.single("childPic"), addChild);
-
-module.exports = { register, login, addChild };
+module.exports = { register, login };

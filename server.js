@@ -1,32 +1,38 @@
 const express = require("express");
-const bodyParser = require("body-parser");
+const multer = require("multer");
 const cors = require("cors");
-const authRoutes = require("./routes/authRoutes"); // นำเข้า routes
-require("dotenv").config(); // โหลด environment variables
-const { connectDB } = require("./config/db"); // การเชื่อมต่อฐานข้อมูล
-const privacyRoutes = require("./routes/privacyRoutes");
+const authRuthes = require("./routes/authRoutes");
+require("dotenv").config();
+const { addChild } = require("./controllers/childController");
 
 const app = express();
 const port = process.env.PORT;
 
+// Setup multer for handling multipart/form-data (file uploads)
+const upload = multer({
+  dest: "uploads/", // Directory to save uploaded files
+  limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size (5MB)
+});
+
 // Middleware
-app.use(bodyParser.json());
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:8081", // ใช้ค่า default ถ้าไม่กำหนด
+    origin: process.env.CORS_ORIGIN || "http://localhost:8081",
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// เชื่อมต่อกับฐานข้อมูล
-const connection = connectDB();
+// Middleware to parse JSON bodies
+app.use(express.json());
 
 // Routes
-app.use("/api/auth", authRoutes); // จัดการ routes สำหรับ authentication
-app.use("/privacy", privacyRoutes);
+app.use("/api/auth", authRuthes);
 
-// เริ่มต้นเซิร์ฟเวอร์
+// Route for adding a child
+app.post("/api/auth/addChild", upload.single("childPic"), addChild);
+
+// Start the server
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
 });

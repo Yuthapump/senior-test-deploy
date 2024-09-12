@@ -1,5 +1,6 @@
 const express = require("express");
-const { register, login, addChild } = require("../controllers/authController");
+const { register, login } = require("../controllers/authController");
+//const { validateRegister, validateLogin } = require("../middleware/validation");
 
 const router = express.Router();
 
@@ -10,6 +11,6 @@ router.post("/register", register);
 router.post("/login", login);
 
 // Route for AddChild
-router.post("/addChild", addChild);
+//router.post("/addChild", addChild);
 
 module.exports = router;
