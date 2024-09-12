@@ -91,7 +91,7 @@ const login = async (req, res) => {
           return res.status(200).json({
             success: true,
             token,
-            userId: user.id,
+            userId: user.user_id,
             role: user.role,
             message: "Login successful",
           });
@@ -104,12 +104,12 @@ const login = async (req, res) => {
       } else {
         return res
           .status(401)
-          .json({ success: false, message: "Invalid username or password" });
+          .json({ success: false, message: " username or password" });
       }
     } else {
       return res
         .status(401)
-        .json({ success: false, message: "Invalid username or password" });
+        .json({ success: false, message: "No username or password" });
     }
   } catch (error) {
     console.error("Server error:", error);
