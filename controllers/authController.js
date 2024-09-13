@@ -4,7 +4,7 @@ const { connectDB } = require("../config/db");
 
 // register function
 const register = async (req, res) => {
-  console.log("Users Data: ", req.body);
+  console.log("Users Req Data: ", req.body);
   const { userName, email, password, phoneNumber, role, privacy } = req.body;
 
   if (!userName || !password) {
