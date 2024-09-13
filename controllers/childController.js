@@ -26,8 +26,8 @@ const addChild = async (req, res) => {
 
     // Insert new child data
     const [result] = await connection.execute(
-      "INSERT INTO children (childName, nickName, birthday, gender, parent_id) VALUES ( ?, ?, ?, ?, ?)",
-      [childName, nickName, birthday, gender, parent_id]
+      "INSERT INTO children (childName, nickName, birthday, gender, parent_id, childPic) VALUES (?, ?, ?, ?, ?, ?)",
+      [childName, nickName, birthday, gender, parent_id, childPic]
     );
 
     // Log child data
