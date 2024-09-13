@@ -5,7 +5,7 @@ const addChild = async (req, res) => {
   console.log("Child Data: ", req.body);
   const { childName, nickName, birthday, gender, parent_id } = req.body;
   const childPic = req.file ? req.file.path : null; // Get file path
-  console.log("childPic: ", req.bpdy.childPic);
+  console.log("childPic: ", req.body.childPic);
 
   if (!childName || !birthday || !parent_id) {
     return res.status(400).json({ message: "Required fields are missing" });
