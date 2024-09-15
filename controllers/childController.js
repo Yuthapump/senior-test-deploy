@@ -4,10 +4,12 @@ const path = require("path");
 // addChild function
 const addChild = async (req, res) => {
   console.log("Child Data: ", req.body);
-  console.log("Req ChildPic: ", req.childPic);
+  console.log("reqfile: ", req.file);
+
   const { childName, nickName, birthday, gender, parent_id } = req.body;
   const childPic = req.file ? path.normalize(req.file.path) : null; // แปลงพาธไฟล์ให้เป็นรูปแบบสากล
 
+  console.log("Req ChildPic: ", childPic);
   console.log("Uploaded file: ", req.file);
 
   if (!childName || !birthday || !parent_id) {
