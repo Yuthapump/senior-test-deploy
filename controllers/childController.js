@@ -13,6 +13,10 @@ const addChild = async (req, res) => {
     return res.status(400).json({ message: "Required fields are missing" });
   }
 
+  if (!childPic) {
+    console.warn("No file uploaded");
+  }
+
   try {
     const connection = await connectDB();
 
