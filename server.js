@@ -8,33 +8,9 @@ const { addChild } = require("./controllers/childController");
 const app = express();
 const port = process.env.PORT || 4000; // ใช้พอร์ตเริ่มต้นหากไม่ได้ตั้งค่าใน .env
 
-// ตั้งค่า Multer สำหรับการอัปโหลดไฟล์
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/"); // โฟลเดอร์ที่ไฟล์จะถูกเก็บ
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(
-      null,
-      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
-    ); // ตั้งชื่อไฟล์ให้เป็นเอกลักษณ์
-  },
-});
-
-const fileFilter = (req, file, cb) => {
-  // ตรวจสอบชนิดของไฟล์ที่อนุญาต
-  const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error("Invalid file type"), false);
-  }
-};
-
+// ตั้งค่า multer สำหรับจัดการ multipart/form-data (การอัพโหลดไฟล์)
 const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
+  dest: "uploads/", // โฟลเดอร์ที่จะเก็บไฟล์ที่อัพโหลด
   limits: { fileSize: 5 * 1024 * 1024 }, // ขนาดไฟล์สูงสุด 5MB
 });
 
