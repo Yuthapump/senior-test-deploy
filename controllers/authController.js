@@ -74,43 +74,47 @@ const login = async (req, res) => {
       [userName]
     );
 
-    if (results.length > 0) {
-      const user = results[0];
-      console.log("User:", user); // ตรวจสอบข้อมูลของ user
-      const match = await bcrypt.compare(password, user.password);
-
-      if (match) {
-        if (user.role) {
-          const token = jwt.sign(
-            { userId: user.user_id, role: user.role },
-            process.env.JWT_SECRET,
-            {
-              expiresIn: "1h",
-            }
-          );
-          return res.status(200).json({
-            success: true,
-            token,
-            userId: user.user_id,
-            role: user.role,
-            message: "Login successful",
-          });
-        } else {
-          return res.status(401).json({
-            success: false,
-            message: "Invalid username or password",
-          });
-        }
-      } else {
-        return res
-          .status(401)
-          .json({ success: false, message: " username or password" });
-      }
-    } else {
-      return res
-        .status(401)
-        .json({ success: false, message: "No username or password" });
+    if (results.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid username or password",
+      });
     }
+
+    const user = results[0];
+    console.log("User:", user); // ตรวจสอบข้อมูลของ user
+
+    const match = await bcrypt.compare(password, user.password);
+
+    if (!match) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid username or password",
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        userId: user.user_id,
+        userName: user.userName,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        role: user.role,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    return res.status(200).json({
+      success: true,
+      token,
+      userId: user.user_id,
+      userName: user.userName,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      role: user.role,
+      message: "Login successful",
+    });
   } catch (error) {
     console.error("Server error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
