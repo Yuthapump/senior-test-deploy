@@ -1,6 +1,6 @@
 const multer = require("multer");
 const path = require("path");
-const connectDB = require("../db"); // Adjust the path as needed
+const connectDB = require("../config/db"); // Adjust the path as needed
 
 // Set up multer for file uploads
 const upload = multer({
