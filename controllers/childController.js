@@ -1,4 +1,5 @@
-const { connectDB } = require("../config/db");
+// childController.js
+const { pool } = require("../config/db"); // เปลี่ยนเป็น pool
 const path = require("path");
 
 // addChild function
@@ -21,7 +22,7 @@ const addChild = async (req, res) => {
   }
 
   try {
-    const connection = await connectDB();
+    const connection = await pool.getConnection(); // ใช้ pool เพื่อเชื่อมต่อ
 
     // Check if child already exists
     const [existingChild] = await connection.execute(
@@ -30,6 +31,7 @@ const addChild = async (req, res) => {
     );
 
     if (existingChild.length > 0) {
+      connection.release(); // คืน connection กลับสู่ pool
       return res.status(409).json({ message: "Child already exists" });
     }
 
@@ -49,6 +51,8 @@ const addChild = async (req, res) => {
       childPic,
       insertId: result.insertId,
     });
+
+    connection.release(); // คืน connection กลับสู่ pool
 
     return res.status(201).json({ message: "Child added successfully" });
   } catch (err) {

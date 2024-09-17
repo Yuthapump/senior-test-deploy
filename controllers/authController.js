@@ -1,6 +1,7 @@
+// authController.js
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { connectDB } = require("../config/db");
+const { pool } = require("../config/db"); // เปลี่ยนเป็น pool
 
 // register function
 const register = async (req, res) => {
@@ -14,7 +15,7 @@ const register = async (req, res) => {
   }
 
   try {
-    const connection = await connectDB(); // ใช้ async/await เพื่อรอการเชื่อมต่อฐานข้อมูล
+    const connection = await pool.getConnection(); // ใช้ pool เพื่อเชื่อมต่อฐานข้อมูล
 
     // ตรวจสอบผู้ใช้ที่มีอยู่แล้ว
     const [existingUsers] = await connection.execute(
@@ -23,6 +24,7 @@ const register = async (req, res) => {
     );
 
     if (existingUsers.length > 0) {
+      connection.release(); // คืน connection กลับไปที่ pool
       return res
         .status(409)
         .json({ success: false, message: "User already exists" });
@@ -36,6 +38,8 @@ const register = async (req, res) => {
       "INSERT INTO users (username, email, password, phoneNumber, role, privacy) VALUES (?, ?, ?, ?, ?, ?)",
       [userName, email, hashedPassword, phoneNumber, role, privacy]
     );
+
+    connection.release(); // คืน connection กลับไปที่ pool
 
     // สร้าง JWT token
     const token = jwt.sign({ userName, role }, process.env.JWT_SECRET, {
@@ -66,7 +70,7 @@ const login = async (req, res) => {
   }
 
   try {
-    const connection = await connectDB(); // ใช้ mysql2/promise เพื่อเชื่อมต่อฐานข้อมูล
+    const connection = await pool.getConnection(); // ใช้ pool เพื่อเชื่อมต่อฐานข้อมูล
 
     // ดำเนินการค้นหาผู้ใช้
     const [results] = await connection.execute(
@@ -75,6 +79,7 @@ const login = async (req, res) => {
     );
 
     if (results.length === 0) {
+      connection.release(); // คืน connection กลับไปที่ pool
       return res.status(401).json({
         success: false,
         message: "Invalid username or password",
@@ -87,6 +92,7 @@ const login = async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
 
     if (!match) {
+      connection.release(); // คืน connection กลับไปที่ pool
       return res.status(401).json({
         success: false,
         message: "Invalid username or password",
@@ -104,6 +110,8 @@ const login = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
+
+    connection.release(); // คืน connection กลับไปที่ pool
 
     return res.status(200).json({
       success: true,
