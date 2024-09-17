@@ -5,7 +5,7 @@ const cors = require("cors");
 const authRoutes = require("./routes/authRoutes"); // แก้ไขคำผิด
 require("dotenv").config();
 const { addChild } = require("./controllers/childController");
-const profileController = require("./controllers/profileController");
+const { updateProfilePic } = require("./controllers/profileController");
 const profileRoutes = require("./routes/profileRoutes");
 
 const app = express();
@@ -38,8 +38,8 @@ app.use("/api/auth", authRoutes);
 // Route for updating profile picture
 app.put(
   "/api/auth/updateProfilePic",
-  profileController.upload.single("profilePic"),
-  profileController.updateProfilePic
+  upload.single("profilePic"),
+  updateProfilePic
 );
 
 // Route
