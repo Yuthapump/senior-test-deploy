@@ -6,6 +6,7 @@ const authRoutes = require("./routes/authRoutes"); // แก้ไขคำผ�
 require("dotenv").config();
 const { addChild } = require("./controllers/childController");
 const profileController = require("./controllers/profileController");
+const profileRoutes = require("./routes/profileRoutes");
 
 const app = express();
 const port = process.env.PORT || 4000; // ใช้พอร์ตเริ่มต้นหากไม่ได้ตั้งค่าใน .env
@@ -40,6 +41,9 @@ app.put(
   profileController.upload.single("profilePic"),
   profileController.updateProfilePic
 );
+
+// Route
+app.use("/api/profile", profileRoutes);
 
 // เส้นทางสำหรับการเพิ่มข้อมูลเด็ก
 app.post("/api/auth/addChild", upload.single("childPic"), addChild);

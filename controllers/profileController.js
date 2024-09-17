@@ -34,9 +34,10 @@ const updateProfilePic = async (req, res) => {
   }
 };
 
+// ฟังก์ชันสำหรับดึงภาพโปรไฟล์
 const getProfilePic = async (req, res) => {
   try {
-    const { userId } = req.query; // Get userId from query parameters
+    const { userId } = req.query;
 
     if (!userId) {
       return res
@@ -44,10 +45,8 @@ const getProfilePic = async (req, res) => {
         .json({ success: false, message: "No userId provided" });
     }
 
-    const connection = await pool.getConnection(); // ใช้ pool เพื่อเชื่อมต่อ
     const query = "SELECT profilePic FROM users WHERE user_id = ?";
-    const [rows] = await connection.query(query, [userId]);
-    connection.release(); // คืน connection กลับสู่ pool
+    const [rows] = await pool.query(query, [userId]);
 
     if (rows.length === 0) {
       return res
@@ -64,7 +63,6 @@ const getProfilePic = async (req, res) => {
 };
 
 module.exports = {
-  upload,
   updateProfilePic,
   getProfilePic,
 };
