@@ -4,6 +4,7 @@ const cors = require("cors");
 const authRoutes = require("./routes/authRoutes"); // แก้ไขคำผิด
 require("dotenv").config();
 const { addChild } = require("./controllers/childController");
+const profileController = require("./controllers/profileController");
 
 const app = express();
 const port = process.env.PORT || 4000; // ใช้พอร์ตเริ่มต้นหากไม่ได้ตั้งค่าใน .env
@@ -23,14 +24,21 @@ app.use(
   })
 );
 
-// Middleware สำหรับการแปลง JSON
+// Middleware for parsing JSON
 app.use(express.json());
 
-// ให้บริการไฟล์สาธารณะจากโฟลเดอร์ 'uploads'
+// Serve static files from 'uploads' folder
 app.use("/uploads", express.static("uploads"));
 
-// ตั้งค่าเส้นทาง (Routes)
+// Set up routes
 app.use("/api/auth", authRoutes);
+
+// Route for updating profile picture
+app.put(
+  "/api/auth/updateProfilePic",
+  profileController.upload.single("profilePic"),
+  profileController.updateProfilePic
+);
 
 // เส้นทางสำหรับการเพิ่มข้อมูลเด็ก
 app.post("/api/auth/addChild", upload.single("childPic"), addChild);
