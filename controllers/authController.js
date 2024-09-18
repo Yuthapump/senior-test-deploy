@@ -42,15 +42,23 @@ const register = async (req, res) => {
     connection.release(); // คืน connection กลับไปที่ pool
 
     // สร้าง JWT token
-    const token = jwt.sign({ userName, role }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
+    const token = jwt.sign(
+      { user_id, userName, email, phoneNumber, role },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "1h",
+      }
+    );
 
     return res.status(201).json({
       success: true,
       message: "Registration successful",
       token,
-      role,
+      userId: user.user_id,
+      userName: user.userName,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      role: user.role,
     });
   } catch (error) {
     console.error("Error during registration:", error);
