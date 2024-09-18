@@ -43,7 +43,13 @@ const register = async (req, res) => {
 
     // สร้าง JWT token
     const token = jwt.sign(
-      { user_id, userName, email, phoneNumber, role },
+      {
+        userId: user.user_id,
+        userName: user.userName,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        role: user.role,
+      },
       process.env.JWT_SECRET,
       {
         expiresIn: "1h",
