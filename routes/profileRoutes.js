@@ -1,6 +1,7 @@
 // profileRoute.js
 const express = require("express");
-const upload = require("../server");
+const multer = require("multer");
+//const upload = require("../server");
 const {
   updateProfilePic,
   getProfilePic,
@@ -8,12 +9,18 @@ const {
 
 const router = express.Router();
 
+// ตั้งค่า multer สำหรับจัดการ multipart/form-data (การอัพโหลดไฟล์)
+const upload = multer({
+  dest: "uploads/", // โฟลเดอร์ที่จะเก็บไฟล์ที่อัพโหลด
+  limits: { fileSize: 5 * 1024 * 1024 }, // ขนาดไฟล์สูงสุด 5MB
+});
+
 // Route สำหรับการอัปเดตภาพโปรไฟล์
-/*router.post(
+router.put(
   "/update-profile-pic",
   upload.single("profilePic"),
   updateProfilePic
-);*/
+);
 
 // Route สำหรับการดึงภาพโปรไฟล์
 router.get("/get-user-profile-pic", getProfilePic);

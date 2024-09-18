@@ -4,7 +4,6 @@ const multer = require("multer");
 const cors = require("cors");
 require("dotenv").config();
 const { addChild } = require("./controllers/childController");
-const { updateProfilePic } = require("./controllers/profileController");
 const authRoutes = require("./routes/authRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 
@@ -40,13 +39,6 @@ app.use("/api/profile", profileRoutes);
 
 // เส้นทางสำหรับการเพิ่มข้อมูลเด็ก
 app.post("/api/auth/addChild", upload.single("childPic"), addChild);
-
-// Route สำหรับการอัปเดตภาพโปรไฟล์
-app.put(
-  "/api/profile/update-profile-pic",
-  upload.single("profilePic"),
-  updateProfilePic
-);
 
 // เริ่มเซิร์ฟเวอร์สำหรับทดสอบ
 app.listen(port, () => {
