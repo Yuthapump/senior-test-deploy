@@ -5,10 +5,13 @@ const { pool } = require("../config/db"); // ปรับให้ใช้ pool
 
 // Controller to handle profile picture upload
 const updateProfilePic = async (req, res) => {
-  const { userId } = req.body;
+  console.log("Update Data: ", req.body);
+  console.log("reqfile: ", req.file);
+
+  const { user_id } = req.body;
   const profilePic = req.file ? req.file.path : null;
 
-  if (!userId || !profilePic) {
+  if (!user_id || !profilePic) {
     return res
       .status(400)
       .json({ success: false, message: "Missing userId or profilePic" });
@@ -18,7 +21,7 @@ const updateProfilePic = async (req, res) => {
     const connection = await pool.getConnection(); // ใช้ pool เพื่อเชื่อมต่อ
     await connection.execute(
       "UPDATE users SET profilePic = ? WHERE user_id = ?",
-      [profilePic, userId]
+      [profilePic, user_id]
     );
     connection.release(); // คืน connection กลับสู่ pool
     res.status(200).json({ success: true, message: "Profile picture updated" });
