@@ -3,12 +3,6 @@ const multer = require("multer");
 const path = require("path");
 const { pool } = require("../config/db"); // ปรับให้ใช้ pool แทน
 
-// Set up multer for file uploads
-const upload = multer({
-  dest: "uploads/", // Folder to store uploaded files
-  limits: { fileSize: 5 * 1024 * 1024 }, // Max file size 5MB
-});
-
 // Controller to handle profile picture upload
 const updateProfilePic = async (req, res) => {
   const { userId } = req.body;
