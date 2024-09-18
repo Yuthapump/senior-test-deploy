@@ -15,40 +15,42 @@ const register = async (req, res) => {
   }
 
   try {
-    const connection = await pool.getConnection(); // ใช้ pool เพื่อเชื่อมต่อฐานข้อมูล
+    const connection = await pool.getConnection(); // Use pool to connect to the database
 
-    // ตรวจสอบผู้ใช้ที่มีอยู่แล้ว
+    // Check if user already exists
     const [existingUsers] = await connection.execute(
       "SELECT * FROM users WHERE username = ?",
       [userName]
     );
 
     if (existingUsers.length > 0) {
-      connection.release(); // คืน connection กลับไปที่ pool
+      connection.release(); // Release connection back to the pool
       return res
         .status(409)
         .json({ success: false, message: "User already exists" });
     }
 
-    // เข้ารหัสรหัสผ่าน
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // เพิ่มผู้ใช้ใหม่
-    await connection.execute(
+    // Insert new user
+    const [result] = await connection.execute(
       "INSERT INTO users (username, email, password, phoneNumber, role, privacy) VALUES (?, ?, ?, ?, ?, ?)",
       [userName, email, hashedPassword, phoneNumber, role, privacy]
     );
 
-    connection.release(); // คืน connection กลับไปที่ pool
+    const userId = result.insertId; // Get the newly inserted user's ID
 
-    // สร้าง JWT token
+    connection.release(); // Release connection back to the pool
+
+    // Create JWT token
     const token = jwt.sign(
       {
-        userId: user.user_id,
-        userName: user.userName,
-        email: user.email,
-        phoneNumber: user.phoneNumber,
-        role: user.role,
+        userId,
+        userName,
+        email,
+        phoneNumber,
+        role,
       },
       process.env.JWT_SECRET,
       {
@@ -60,11 +62,11 @@ const register = async (req, res) => {
       success: true,
       message: "Registration successful",
       token,
-      userId: user.user_id,
-      userName: user.userName,
-      email: user.email,
-      phoneNumber: user.phoneNumber,
-      role: user.role,
+      userId,
+      userName,
+      email,
+      phoneNumber,
+      role,
     });
   } catch (error) {
     console.error("Error during registration:", error);
