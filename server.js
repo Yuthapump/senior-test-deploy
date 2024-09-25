@@ -34,10 +34,10 @@ app.use("/uploads", express.static("uploads"));
 // Set up routes
 app.use("/api/auth", authRoutes);
 
-// Route
+// Profile Route
 app.use("/api/profile", profileRoutes);
 
-// เส้นทางสำหรับการเพิ่มข้อมูลเด็ก
+// Addchild Route
 app.post("/api/auth/addChild", upload.single("childPic"), addChild);
 
 // เริ่มเซิร์ฟเวอร์สำหรับทดสอบ

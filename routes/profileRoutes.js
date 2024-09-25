@@ -1,13 +1,13 @@
 // profileRoute.js
 const express = require("express");
 const multer = require("multer");
-//const upload = require("../server");
+
+const router = express.Router();
+
 const {
   updateProfilePic,
   getProfilePic,
 } = require("../controllers/profileController");
-
-const router = express.Router();
 
 // ตั้งค่า multer สำหรับจัดการ multipart/form-data (การอัพโหลดไฟล์)
 const upload = multer({
