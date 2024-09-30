@@ -5,7 +5,11 @@ const path = require("path");
 // addChild function
 const addChild = async (req, res) => {
   console.log("Child Data: ", req.body);
-  console.log("reqfile: ", req.file);
+  if (!req.file) {
+    console.error("File not received");
+  } else {
+    console.log("reqfile: ", req.file);
+  }
 
   const { childName, nickName, birthday, gender, parent_id } = req.body;
   const childPic = req.file ? path.normalize(req.file.path) : null; // แปลงพาธไฟล์ให้เป็นรูปแบบสากล
@@ -54,7 +58,18 @@ const addChild = async (req, res) => {
 
     connection.release(); // คืน connection กลับสู่ pool
 
-    return res.status(201).json({ message: "Child added successfully" });
+    return res.status(201).json({
+      message: "Child added successfully",
+      childData: {
+        childName,
+        nickName,
+        birthday,
+        gender,
+        parent_id,
+        childPic,
+        insertId: result.insertId,
+      },
+    });
   } catch (err) {
     console.error("Error inserting data:", err);
     return res.status(500).json({ message: "Error adding child" });
