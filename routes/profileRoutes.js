@@ -12,7 +12,7 @@ const {
 // ตั้งค่า multer สำหรับจัดการ multipart/form-data (การอัพโหลดไฟล์)
 const upload = multer({
   dest: "uploads/", // โฟลเดอร์ที่จะเก็บไฟล์ที่อัพโหลด
-  limits: { fileSize: 5 * 1024 * 1024 }, // ขนาดไฟล์สูงสุด 5MB
+  limits: { fileSize: 20 * 1024 * 1024 }, // ขนาดไฟล์สูงสุด 5MB
 });
 
 // Route สำหรับการอัปเดตภาพโปรไฟล์
