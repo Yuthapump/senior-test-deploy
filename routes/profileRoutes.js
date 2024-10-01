@@ -1,7 +1,7 @@
 // profileRoute.js
 const express = require("express");
 //const multer = require("multer");
-const upload = require("../server");
+const { upload } = require("../server");
 
 const router = express.Router();
 
