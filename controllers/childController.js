@@ -79,11 +79,11 @@ const addChild = async (req, res) => {
 // function to get child data
 const getChildData = async (req, res) => {
   try {
-    const { parent_id } = req.query; // รับ parent_id จาก query string
+    const { parent_id } = req.query;
 
     const connection = await pool.getConnection();
 
-    // ตรวจสอบว่า parent_id ถูกส่งมาหรือไม่
+    // ตรวจสอบว่า parent_id
     if (!parent_id) {
       connection.release(); // คืน connection กลับสู่ pool
       return res.status(400).json({ message: "parent_id is required" });
@@ -97,8 +97,10 @@ const getChildData = async (req, res) => {
 
     connection.release(); // คืน connection กลับสู่ pool
 
+    // ตรวจสอบจำนวนข้อมูลเด็ก
     if (children.length === 0) {
-      return res.status(404).json({ message: "No children found" });
+      // คืนค่า 200 และ children เป็นอาร์เรย์ว่าง
+      return res.status(200).json({ success: true, children: [] });
     }
 
     return res.status(200).json({ success: true, children });
