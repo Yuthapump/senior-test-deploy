@@ -62,7 +62,7 @@ const addChild = async (req, res) => {
       message: "Child added successfully",
       childData: {
         childName,
-        nickName,
+        nickname,
         birthday,
         gender,
         parent_id,
