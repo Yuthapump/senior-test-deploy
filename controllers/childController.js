@@ -11,7 +11,7 @@ const addChild = async (req, res) => {
     console.log("reqfile: ", req.file);
   }
 
-  const { childName, nickName, birthday, gender, parent_id } = req.body;
+  const { childName, nickname, birthday, gender, parent_id } = req.body;
   const childPic = req.file ? path.normalize(req.file.path) : null; // แปลงพาธไฟล์ให้เป็นรูปแบบสากล
 
   console.log("Req ChildPic: ", childPic);
@@ -41,14 +41,14 @@ const addChild = async (req, res) => {
 
     // Insert new child data
     const [result] = await connection.execute(
-      "INSERT INTO children (childName, nickName, birthday, gender, parent_id, childPic) VALUES (?, ?, ?, ?, ?, COALESCE(?, NULL))",
-      [childName, nickName, birthday, gender, parent_id, childPic]
+      "INSERT INTO children (childName, nickname, birthday, gender, parent_id, childPic) VALUES (?, ?, ?, ?, ?, COALESCE(?, NULL))",
+      [childName, nickname, birthday, gender, parent_id, childPic]
     );
 
     // Log child data
     console.log("Child Data inserted successfully: ", {
       childName,
-      nickName,
+      nickname,
       birthday,
       gender,
       parent_id,
