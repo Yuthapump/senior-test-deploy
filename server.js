@@ -7,6 +7,7 @@ require("dotenv").config();
 const { addChild } = require("./controllers/childController");
 const authRoutes = require("./routes/authRoutes");
 const profileRoutes = require("./routes/profileRoutes");
+const childRoutes = require("./routes/childRoutes");
 
 const app = express();
 const port = process.env.PORT; //
@@ -58,14 +59,20 @@ app.use(express.json());
 // Serve static files from 'uploads' folder
 app.use("/uploads", express.static("uploads"));
 
-// Set up routes
+// Set up Routes
 app.use("/api/auth", authRoutes);
 
-// Profile Route
+// Profile Routes
 app.use("/api/profile", profileRoutes);
+
+// Child Routes
+app.use("/api/child", childRoutes);
 
 // Addchild Route
 app.post("/api/auth/addChild", upload.single("childPic"), addChild);
+
+// Route สำหรับการดึงภาพโปรไฟล์
+//router.get("/get-user-profile-pic", getProfilePic);
 
 // เริ่มเซิร์ฟเวอร์สำหรับทดสอบ
 app.listen(port, () => {

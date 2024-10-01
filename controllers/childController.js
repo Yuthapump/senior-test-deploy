@@ -76,4 +76,38 @@ const addChild = async (req, res) => {
   }
 };
 
-module.exports = { addChild };
+// function to get child data
+const getChildData = async (req, res) => {
+  try {
+    const { parent_id } = req.query; // รับ parent_id จาก query string
+
+    const connection = await pool.getConnection();
+
+    // ตรวจสอบว่า parent_id ถูกส่งมาหรือไม่
+    if (!parent_id) {
+      connection.release(); // คืน connection กลับสู่ pool
+      return res.status(400).json({ message: "parent_id is required" });
+    }
+
+    // ดึงข้อมูลเด็กตาม parent_id
+    const [children] = await connection.execute(
+      "SELECT * FROM children WHERE parent_id = ?",
+      [parent_id]
+    );
+
+    connection.release(); // คืน connection กลับสู่ pool
+
+    if (children.length === 0) {
+      return res.status(404).json({ message: "No children found" });
+    }
+
+    return res.status(200).json({ success: true, children });
+  } catch (error) {
+    console.error("Error fetching child data: ", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+module.exports = { addChild, getChildData };
