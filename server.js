@@ -2,6 +2,7 @@
 const express = require("express");
 const multer = require("multer");
 const cors = require("cors");
+const path = require("path");
 require("dotenv").config();
 const { addChild } = require("./controllers/childController");
 const authRoutes = require("./routes/authRoutes");
@@ -11,9 +12,34 @@ const app = express();
 const port = process.env.PORT; //
 
 // ตั้งค่า multer สำหรับจัดการ multipart/form-data (การอัพโหลดไฟล์)
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/"); // กำหนดโฟลเดอร์สำหรับเก็บไฟล์ที่อัพโหลด
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(
+      null,
+      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
+    ); // ตั้งชื่อไฟล์ใหม่พร้อมนามสกุลเดิม
+  },
+});
+
 const upload = multer({
-  dest: "uploads/", // โฟลเดอร์ที่จะเก็บไฟล์ที่อัพโหลด
+  storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // ขนาดไฟล์สูงสุด 5MB
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png/; // รองรับไฟล์ JPEG, JPG และ PNG
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error("กรุณาอัพโหลดไฟล์รูปภาพที่เป็นนามสกุล jpeg, jpg, หรือ png"));
+  },
 });
 
 // Middleware สำหรับ CORS
@@ -21,7 +47,7 @@ app.use(
   cors({
     //origin: "*", // อนุญาตทุกโดเมน
     origin: process.env.CORS_ORIGIN,
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
