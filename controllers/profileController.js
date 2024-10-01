@@ -23,15 +23,19 @@ const updateProfilePic = async (req, res) => {
       [user_id]
     );
 
-    if (oldPicRows.length > 0 && oldPicRows[0].profilePic) {
-      // Delete old profile picture from the filesystem
+    // Check if there is an old profile picture
+    if (oldPicRows.length > 0) {
       const oldPicPath = oldPicRows[0].profilePic;
-      try {
-        if (fs.existsSync(path.resolve(oldPicPath))) {
-          fs.unlinkSync(path.resolve(oldPicPath));
+
+      if (oldPicPath) {
+        // Delete old profile picture from the filesystem
+        try {
+          if (fs.existsSync(path.resolve(oldPicPath))) {
+            fs.unlinkSync(path.resolve(oldPicPath));
+          }
+        } catch (err) {
+          console.error("Error deleting old profile picture:", err);
         }
-      } catch (err) {
-        console.error("Error deleting old profile picture:", err);
       }
     }
 
