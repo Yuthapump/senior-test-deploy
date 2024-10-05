@@ -5,10 +5,16 @@ const multer = require("multer");
 
 const { pool } = require("../config/db");
 
+// ตรวจสอบและสร้างโฟลเดอร์ uploads/childrenPic หากยังไม่มี
+const dir = "uploads/profilePic";
+if (!fs.existsSync(dir)) {
+  fs.mkdirSync(dir, { recursive: true }); // สร้างโฟลเดอร์พร้อมกับโฟลเดอร์ย่อยที่ขาดหายไป
+}
+
 // ตั้งค่า multer สำหรับจัดการ multipart/form-data (การอัพโหลดไฟล์)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/profilePic/"); // กำหนดโฟลเดอร์สำหรับเก็บไฟล์ที่อัพโหลด
+    cb(null, dir); // กำหนดโฟลเดอร์สำหรับเก็บไฟล์ที่อัพโหลด
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
