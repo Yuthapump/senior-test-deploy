@@ -6,7 +6,7 @@ const path = require("path");
 // ตั้งค่า multer สำหรับจัดการ multipart/form-data (การอัพโหลดไฟล์)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/chilPic"); // กำหนดโฟลเดอร์สำหรับเก็บไฟล์ที่อัพโหลด
+    cb(null, "uploads/childPic"); // กำหนดโฟลเดอร์สำหรับเก็บไฟล์ที่อัพโหลด
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
