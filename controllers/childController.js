@@ -1,12 +1,19 @@
 // childController.js
-const { pool } = require("../config/db"); // เปลี่ยนเป็น pool
+const fs = require("fs");
+const { pool } = require("../config/db");
 const multer = require("multer");
 const path = require("path");
+
+// ตรวจสอบและสร้างโฟลเดอร์ uploads/childrenPic หากยังไม่มี
+const dir = "uploads/childrenPic";
+if (!fs.existsSync(dir)) {
+  fs.mkdirSync(dir, { recursive: true }); // สร้างโฟลเดอร์พร้อมกับโฟลเดอร์ย่อยที่ขาดหายไป
+}
 
 // ตั้งค่า multer สำหรับจัดการ multipart/form-data (การอัพโหลดไฟล์)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/childrenPic/"); // กำหนดโฟลเดอร์สำหรับเก็บไฟล์ที่อัพโหลด
+    cb(null, dir); // กำหนดโฟลเดอร์สำหรับเก็บไฟล์ที่อัพโหลด
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -37,6 +44,7 @@ const upload = multer({
 // addChild function
 const addChild = async (req, res) => {
   console.log("Child Data: ", req.body);
+
   if (!req.file) {
     console.error("File not received");
   } else {
@@ -51,6 +59,12 @@ const addChild = async (req, res) => {
   console.log("Uploaded file: ", req.file);
 
   if (!childName || !birthday || !parent_id) {
+    // ลบไฟล์ถ้าไม่มีข้อมูลที่จำเป็น
+    if (req.file) {
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.error("Error deleting file:", err);
+      });
+    }
     return res.status(400).json({ message: "Required fields are missing" });
   }
 
@@ -69,6 +83,14 @@ const addChild = async (req, res) => {
 
     if (existingChild.length > 0) {
       connection.release(); // คืน connection กลับสู่ pool
+
+      // ลบไฟล์ถ้าเด็กมีอยู่แล้ว
+      if (req.file) {
+        fs.unlink(req.file.path, (err) => {
+          if (err) console.error("Error deleting file:", err);
+        });
+      }
+
       return res.status(409).json({ message: "Child already exists" });
     }
 
@@ -119,6 +141,14 @@ const addChild = async (req, res) => {
     });
   } catch (err) {
     console.error("Error inserting data:", err);
+
+    // ลบไฟล์ถ้าเกิดข้อผิดพลาด
+    if (req.file) {
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.error("Error deleting file:", err);
+      });
+    }
+
     return res.status(500).json({ message: "Error adding child" });
   }
 };

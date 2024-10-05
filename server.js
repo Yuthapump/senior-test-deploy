@@ -69,12 +69,6 @@ app.use("/api/profile", profileRoutes);
 // Child Routes
 app.use("/api/child", childRoutes);
 
-// Addchild Route
-//app.post("/api/auth/addChild", upload.single("childPic"), addChild);
-
-// Route สำหรับการดึงภาพโปรไฟล์
-//router.get("/get-user-profile-pic", getProfilePic);
-
 // เริ่มเซิร์ฟเวอร์สำหรับทดสอบ
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port} for Test Sir'Benz`);
