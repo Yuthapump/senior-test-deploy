@@ -1,7 +1,40 @@
 // profileController.js
 const fs = require("fs");
 const path = require("path");
+const multer = require("multer");
+
 const { pool } = require("../config/db");
+
+// ตั้งค่า multer สำหรับจัดการ multipart/form-data (การอัพโหลดไฟล์)
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/profilePic"); // กำหนดโฟลเดอร์สำหรับเก็บไฟล์ที่อัพโหลด
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(
+      null,
+      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
+    ); // ตั้งชื่อไฟล์ใหม่พร้อมนามสกุลเดิม
+  },
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png/; // รองรับไฟล์ JPEG, JPG และ PNG
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error("กรุณาอัพโหลดไฟล์รูปภาพที่เป็นนามสกุล jpeg, jpg, หรือ png"));
+  },
+});
 
 // Controller to handle profile picture upload
 const updateProfilePic = async (req, res) => {
@@ -84,4 +117,5 @@ const getProfilePic = async (req, res) => {
 module.exports = {
   updateProfilePic,
   getProfilePic,
+  upload,
 };

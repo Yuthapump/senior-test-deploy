@@ -2,14 +2,14 @@
 const express = require("express");
 const router = express.Router();
 
-const { getChildData } = require("../controllers/childController");
+const {
+  getChildData,
+  addChild,
+  upload,
+} = require("../controllers/childController");
 
-// Route สำหรับการอัปเดตภาพโปรไฟล์
-/*router.put(
-  "/update-profile-pic",
-  upload.single("profilePic"),
-  updateProfilePic
-);*/
+// Route Addchild
+router.post("/addChild", upload.single("childPic"), addChild);
 
 // Route สำหรับการดึง
 router.get("/get-child-data", getChildData);

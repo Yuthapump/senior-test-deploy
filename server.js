@@ -46,8 +46,9 @@ const upload = multer({
 // Middleware สำหรับ CORS
 app.use(
   cors({
-    //origin: "*", // อนุญาตทุกโดเมน
-    origin: process.env.CORS_ORIGIN,
+    origin: "*", // อนุญาตทุกโดเมน
+    //origin: process.env.CORS_ORIGIN_TEST,
+    //origin: process.env.CORS_ORIGIN,
     methods: ["GET", "POST", "PUT"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
@@ -69,14 +70,15 @@ app.use("/api/profile", profileRoutes);
 app.use("/api/child", childRoutes);
 
 // Addchild Route
-app.post("/api/auth/addChild", upload.single("childPic"), addChild);
+//app.post("/api/auth/addChild", upload.single("childPic"), addChild);
 
 // Route สำหรับการดึงภาพโปรไฟล์
 //router.get("/get-user-profile-pic", getProfilePic);
 
 // เริ่มเซิร์ฟเวอร์สำหรับทดสอบ
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+  console.log(`Server running at http://localhost:${port} for Test Sir'Benz`);
+  console.log("waiting for your command Sir...");
 });
 
 module.exports = upload;
