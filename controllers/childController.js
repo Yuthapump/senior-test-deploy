@@ -11,7 +11,8 @@ const addChild = async (req, res) => {
     console.log("reqfile: ", req.file);
   }
 
-  const { childName, nickname, birthday, gender, parent_id } = req.body;
+  const { childName, nickname, birthday, gender, parent_id, supervisor_id } =
+    req.body;
   const childPic = req.file ? path.normalize(req.file.path) : null; // แปลงพาธไฟล์ให้เป็นรูปแบบสากล
 
   console.log("Req ChildPic: ", childPic);
@@ -56,6 +57,20 @@ const addChild = async (req, res) => {
       insertId: result.insertId,
     });
 
+    // Insert into parent_children
+    await connection.execute(
+      "INSERT INTO parent_children (parent_id, child_id) VALUES (?, ?)",
+      [parent_id, result.insertId]
+    );
+
+    // If supervisor_id is provided, insert into supervisor_children
+    if (supervisor_id) {
+      await connection.execute(
+        "INSERT INTO supervisor_children (supervisor_id, child_id) VALUES (?, ?)",
+        [supervisor_id, result.insertId]
+      );
+    }
+
     connection.release(); // คืน connection กลับสู่ pool
 
     return res.status(201).json({
@@ -76,39 +91,50 @@ const addChild = async (req, res) => {
   }
 };
 
-// function to get child data
+// function to get child data by parent_id or supervisor_id
 const getChildData = async (req, res) => {
+  let connection;
   try {
-    const { parent_id } = req.query;
+    const { parent_id, supervisor_id } = req.query;
 
-    const connection = await pool.getConnection();
+    connection = await pool.getConnection();
 
-    // ตรวจสอบว่า parent_id
-    if (!parent_id) {
-      connection.release(); // คืน connection กลับสู่ pool
-      return res.status(400).json({ message: "parent_id is required" });
+    // ตรวจสอบว่า parent_id หรือ supervisor_id ถูกระบุ
+    if (!parent_id && !supervisor_id) {
+      return res
+        .status(400)
+        .json({ message: "parent_id or supervisor_id is required" });
     }
 
-    // ดึงข้อมูลเด็กตาม parent_id
-    const [children] = await connection.execute(
-      "SELECT * FROM children WHERE parent_id = ?",
-      [parent_id]
-    );
+    let query;
+    const params = [];
 
-    connection.release(); // คืน connection กลับสู่ pool
-
-    // ตรวจสอบจำนวนข้อมูลเด็ก
-    if (children.length === 0) {
-      // คืนค่า 200 และ children เป็นอาร์เรย์ว่าง
-      return res.status(200).json({ success: true, children: [] });
+    // ถ้าระบุ parent_id
+    if (parent_id) {
+      query =
+        "SELECT c.* FROM children c JOIN parent_children pc ON c.id = pc.child_id WHERE pc.parent_id = ?";
+      params.push(parent_id);
     }
 
-    return res.status(200).json({ success: true, children });
+    // ถ้าระบุ supervisor_id
+    if (supervisor_id) {
+      query =
+        "SELECT c.* FROM children c JOIN supervisor_children sc ON c.id = sc.child_id WHERE sc.supervisor_id = ?";
+      params.push(supervisor_id);
+    }
+
+    const [children] = await connection.execute(query, params);
+
+    return res
+      .status(200)
+      .json({ success: true, children: children.length ? children : [] });
   } catch (error) {
     console.error("Error fetching child data: ", error);
     return res
       .status(500)
       .json({ success: false, message: "Internal server error" });
+  } finally {
+    if (connection) connection.release(); // คืน connection กลับสู่ pool
   }
 };
 
