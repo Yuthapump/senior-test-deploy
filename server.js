@@ -8,6 +8,7 @@ const { addChild } = require("./controllers/childController");
 const authRoutes = require("./routes/authRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const childRoutes = require("./routes/childRoutes");
+const assessmentRoutes = require("./routes/assessmentRoutes");
 
 const app = express();
 const port = process.env.PORT; //
@@ -68,6 +69,9 @@ app.use("/api/profile", profileRoutes);
 
 // Child Routes
 app.use("/api/child", childRoutes);
+
+// Assessment Routes
+app.use("/api/assessment", assessmentRoutes);
 
 // เริ่มเซิร์ฟเวอร์สำหรับทดสอบ
 app.listen(port, () => {
