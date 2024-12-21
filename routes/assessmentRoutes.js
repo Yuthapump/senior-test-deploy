@@ -2,9 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const assessmentController = require("../controllers/assessmentController");
-const {
-  getAssessmentsByAspect,
-} = require("../controllers/assessmentController");
+
 // const { protect, restrictTo } = require("../controllers/authController");
 
 // Route to fetch assessments by child ID
@@ -22,7 +20,7 @@ router.post(
 // Route to fetch assessment details by child_id and aspect
 router.get(
   "/assessments-get-details/:child_id/:aspect",
-  getAssessmentsByAspect
+  assessmentController.getAssessmentsByAspect
 );
 
 module.exports = router;
