@@ -6,6 +6,12 @@ const assessmentController = require("../controllers/assessmentController");
 
 // const { protect, restrictTo } = require("../controllers/authController");
 
+// Route to fetch assessment details by child_id and aspect
+router.get(
+  "/assessments-get-details/:child_id/:aspect",
+  assessmentController.getAssessmentsByAspect
+);
+
 // Route to fetch assessments by child ID
 router.get(
   "/assessments-child/:child_id",
@@ -16,12 +22,6 @@ router.get(
 router.post(
   "/assessments-update-status/:child_id/:aspect",
   assessmentController.updateAssessmentStatus
-);
-
-// Route to fetch assessment details by child_id and aspect
-router.get(
-  "/assessments-get-details/:child_id/:aspect",
-  assessmentController.getAssessmentsByAspect
 );
 
 module.exports = router;

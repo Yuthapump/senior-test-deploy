@@ -5,7 +5,7 @@ const getAssessmentsByAspect = async (req, res) => {
   const { child_id, aspect } = req.params;
 
   try {
-    // ดึงข้อมูลการประเมินทั้งหมดสำหรับ child_id และ aspect ที่ระบุ
+    // Query to fetch existing assessments for the specified child_id and aspect
     const query = `
       SELECT 
         a.id AS assessment_id,
@@ -17,11 +17,10 @@ const getAssessmentsByAspect = async (req, res) => {
       WHERE a.child_id = ? AND ad.aspect = ?
       ORDER BY ad.assessment_rank ASC
     `;
-
     const [rows] = await pool.query(query, [child_id, aspect]);
 
     if (rows.length === 0) {
-      // ถ้าไม่มีการประเมินสำหรับ aspect นี้ ให้เพิ่มการประเมิน rank 1 และตั้งสถานะเป็น 'in_progress'
+      // No existing assessments found, need to create a new one
       const defaultQuery = `
         SELECT 
           id AS assessment_detail_id,
@@ -33,7 +32,6 @@ const getAssessmentsByAspect = async (req, res) => {
         ORDER BY assessment_rank ASC
         LIMIT 1
       `;
-
       const [defaultAssessment] = await pool.query(defaultQuery, [aspect]);
 
       if (defaultAssessment.length === 0) {
@@ -42,12 +40,11 @@ const getAssessmentsByAspect = async (req, res) => {
         });
       }
 
-      // เพิ่มข้อมูลการประเมินใหม่ใน assessments โดยตั้งค่า status เป็น 'in_progress'
+      // Insert new assessment with status 'in_progress'
       const insertQuery = `
         INSERT INTO assessments (child_id, assessment_rank, aspect, status)
         VALUES (?, ?, ?, 'in_progress')
       `;
-
       const [result] = await pool.query(insertQuery, [
         child_id,
         defaultAssessment[0].assessment_rank,
@@ -61,18 +58,18 @@ const getAssessmentsByAspect = async (req, res) => {
           child_id: child_id,
           assessment_rank: defaultAssessment[0].assessment_rank,
           aspect: defaultAssessment[0].aspect,
-          status: "in_progress", // ตั้งค่าตัวสถานะเป็น 'in_progress'
+          status: "in_progress",
           assessment_date: new Date().toISOString(),
         },
       });
     } else {
-      // ถ้ามีการประเมินให้เช็คสถานะ
+      // If assessments exist, check for 'in_progress' status
       const inProgressAssessments = rows.filter(
         (row) => row.status === "in_progress"
       );
 
       if (inProgressAssessments.length > 0) {
-        // ถ้ามีการประเมินที่สถานะ 'in_progress' ให้ส่งข้อมูลที่ล่าสุด
+        // Return the most recent 'in_progress' assessment
         const inProgressAssessment = inProgressAssessments
           .sort((a, b) => a.assessment_rank - b.assessment_rank)
           .pop();
@@ -81,7 +78,7 @@ const getAssessmentsByAspect = async (req, res) => {
           data: inProgressAssessment,
         });
       } else {
-        // ถ้าทุกการประเมินผ่าน
+        // If all assessments are completed
         return res.status(200).json({
           message: "All assessments completed",
           data: rows,
