@@ -2,8 +2,8 @@
 const { pool } = require("../config/db");
 
 const getAssessmentsByAspect = async (req, res) => {
-  const { child_id, aspect } = req.params;
-  const user_id = req.user_id; // สมมุติว่า `user_id` มาจากคำขอ (ปรับให้เหมาะสมตามการใช้งานจริง)
+  const { child_id, aspect, user_id } = req.params;
+  // const user_id = req.params;
 
   try {
     // คำสั่ง SQL สำหรับดึงข้อมูลการประเมินที่มีอยู่สำหรับ child_id และ aspect ที่ระบุ
