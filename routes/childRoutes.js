@@ -2,18 +2,18 @@
 const express = require("express");
 const router = express.Router();
 
-// const {
-//   getChildData,
-//   addChild,
-//   upload,
-// } = require("../controllers/childController");
+const {
+  getChildData,
+  addChild,
+  upload,
+} = require("../controllers/childController");
 
 const { childapi } = require("../controllers/childController");
 
 // Route Addchild
-router.post("/addChild", childapi.upload.single("childPic"), childapi.addChild);
+router.post("/addChild", upload.single("childPic"), addChild);
 
 // Route สำหรับการดึง
-router.get("/get-child-data", childapi.getChildData);
+router.get("/get-child-data", getChildData);
 
 module.exports = router;
