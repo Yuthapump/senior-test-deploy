@@ -105,20 +105,32 @@ const getAssessmentsByChild = async (req, res) => {
 
   try {
     const query = `
-      SELECT a.id, a.child_id, a.user_id, a.date, a.result, ad.assessment_name, ad.assessment_rank, ad.result as detail_result
+      SELECT 
+        a.id AS assessment_id,
+        a.child_id AS child_id,
+        a.user_id AS evaluator_id,
+        a.date AS assessment_date,
+        a.result AS overall_result,
+        ad.assessment_name AS aspect_name,
+        ad.assessment_rank AS aspect_rank,
+        ad.result AS aspect_result
       FROM assessments a
       JOIN assessment_details ad ON a.id = ad.assessment_id
       WHERE a.child_id = ?`;
 
     const [results] = await pool.query(query, [child_id]);
 
-    if (results.length > 0) {
-      res.status(200).json(results);
-    } else {
-      res.status(404).json({ message: "No assessments found for this child." });
+    if (results.length === 0) {
+      return res
+        .status(200)
+        .json({ message: "No assessments found.", data: [] });
     }
+
+    res
+      .status(200)
+      .json({ message: "Assessments retrieved successfully.", data: results });
   } catch (error) {
-    console.error(error);
+    console.error("Error fetching assessments:", error);
     res.status(500).json({ error: "Failed to retrieve assessments" });
   }
 };
