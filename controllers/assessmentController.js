@@ -3,9 +3,10 @@ const { pool } = require("../config/db");
 
 const getAssessmentsByAspect = async (req, res) => {
   const { child_id, aspect } = req.params;
+  const user_id = req.user_id; // สมมุติว่า `user_id` มาจากคำขอ (ปรับให้เหมาะสมตามการใช้งานจริง)
 
   try {
-    // Query to fetch existing assessments for the specified child_id and aspect
+    // คำสั่ง SQL สำหรับดึงข้อมูลการประเมินที่มีอยู่สำหรับ child_id และ aspect ที่ระบุ
     const query = `
       SELECT 
         a.id AS assessment_id,
@@ -20,7 +21,7 @@ const getAssessmentsByAspect = async (req, res) => {
     const [rows] = await pool.query(query, [child_id, aspect]);
 
     if (rows.length === 0) {
-      // No existing assessments found, need to create a new one
+      // ถ้ายังไม่มีการประเมิน จึงต้องสร้างการประเมินใหม่
       const defaultQuery = `
         SELECT 
           id AS assessment_detail_id,
@@ -36,23 +37,24 @@ const getAssessmentsByAspect = async (req, res) => {
 
       if (defaultAssessment.length === 0) {
         return res.status(404).json({
-          error: "No assessment details found for the specified aspect.",
+          error: "ไม่พบข้อมูลการประเมินสำหรับด้านที่ระบุ",
         });
       }
 
-      // Insert new assessment with status 'in_progress'
+      // แทรกการประเมินใหม่โดยกำหนดสถานะเป็น 'in_progress' และ user_id
       const insertQuery = `
-        INSERT INTO assessments (child_id, assessment_rank, aspect, status)
-        VALUES (?, ?, ?, 'in_progress')
+        INSERT INTO assessments (child_id, assessment_rank, aspect, status, user_id)
+        VALUES (?, ?, ?, 'in_progress', ?)
       `;
       const [result] = await pool.query(insertQuery, [
         child_id,
         defaultAssessment[0].assessment_rank,
         aspect,
+        user_id, // เพิ่ม user_id ในคำสั่ง SQL
       ]);
 
       return res.status(201).json({
-        message: "Assessment initialized with rank 1",
+        message: "การประเมินถูกตั้งค่าเป็นเริ่มต้นด้วยอันดับ 1",
         data: {
           assessment_id: result.insertId,
           child_id: child_id,
@@ -63,31 +65,31 @@ const getAssessmentsByAspect = async (req, res) => {
         },
       });
     } else {
-      // If assessments exist, check for 'in_progress' status
+      // หากมีการประเมินอยู่แล้ว ตรวจสอบสถานะ 'in_progress'
       const inProgressAssessments = rows.filter(
         (row) => row.status === "in_progress"
       );
 
       if (inProgressAssessments.length > 0) {
-        // Return the most recent 'in_progress' assessment
+        // คืนค่าการประเมินที่ยังอยู่ในสถานะ 'in_progress'
         const inProgressAssessment = inProgressAssessments
           .sort((a, b) => a.assessment_rank - b.assessment_rank)
           .pop();
         return res.status(200).json({
-          message: "Assessment in progress",
+          message: "การประเมินอยู่ระหว่างดำเนินการ",
           data: inProgressAssessment,
         });
       } else {
-        // If all assessments are completed
+        // หากการประเมินทั้งหมดเสร็จสิ้นแล้ว
         return res.status(200).json({
-          message: "All assessments completed",
+          message: "การประเมินทั้งหมดเสร็จสิ้น",
           data: rows,
         });
       }
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Failed to retrieve assessments" });
+    res.status(500).json({ error: "ไม่สามารถดึงข้อมูลการประเมินได้" });
   }
 };
 
