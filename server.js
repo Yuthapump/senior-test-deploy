@@ -8,6 +8,7 @@ require("dotenv").config();
 const authRoutes = require("./routes/authRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const childRoutes = require("./routes/childRoutes");
+
 const assessmentRoutes = require("./routes/assessmentRoutes");
 
 const app = express();
