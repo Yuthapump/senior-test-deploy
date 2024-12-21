@@ -20,6 +20,9 @@ router.post(
 );
 
 // Route to fetch assessment details by child_id and aspect
-router.get("/assessments-get-details", getAssessmentsByAspect);
+router.get(
+  "/assessments-get-details/:child_id/:aspect",
+  getAssessmentsByAspect
+);
 
 module.exports = router;
