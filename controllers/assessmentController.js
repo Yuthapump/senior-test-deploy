@@ -98,6 +98,11 @@ const getAssessmentsByAspect = async (req, res) => {
 const getAssessmentsByChild = async (req, res) => {
   const { child_id } = req.params;
 
+  // Validate child_id
+  if (!Number.isInteger(Number(child_id))) {
+    return res.status(400).json({ error: "Invalid child ID provided." });
+  }
+
   try {
     const query = `
       SELECT a.id, a.child_id, a.user_id, a.date, a.result, ad.assessment_name, ad.assessment_rank, ad.result as detail_result
