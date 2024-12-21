@@ -174,14 +174,14 @@ const getChildData = async (req, res) => {
     // ถ้าระบุ parent_id
     if (parent_id) {
       query =
-        "SELECT c.* FROM children c JOIN parent_children pc ON c.id = pc.child_id WHERE pc.parent_id = ?";
+        "SELECT c.* FROM children c JOIN parent_children pc ON c.child_id = pc.child_id WHERE pc.parent_id = ?";
       params.push(parent_id);
     }
 
     // ถ้าระบุ supervisor_id
     if (supervisor_id) {
       query =
-        "SELECT c.* FROM children c JOIN supervisor_children sc ON c.id = sc.child_id WHERE sc.supervisor_id = ?";
+        "SELECT c.* FROM children c JOIN supervisor_children sc ON c.child_id = sc.child_id WHERE sc.supervisor_id = ?";
       params.push(supervisor_id);
     }
 

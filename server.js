@@ -4,7 +4,7 @@ const multer = require("multer");
 const cors = require("cors");
 const path = require("path");
 require("dotenv").config();
-const { addChild } = require("./controllers/childController");
+// const { addChild } = require("./controllers/childController");
 const authRoutes = require("./routes/authRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const childRoutes = require("./routes/childRoutes");
