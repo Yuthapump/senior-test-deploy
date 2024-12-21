@@ -107,15 +107,17 @@ const getAssessmentsByChild = async (req, res) => {
     const query = `
       SELECT 
         a.id AS assessment_id,
+        c.child_name AS child_name, -- ชื่อเด็ก
         a.child_id AS child_id,
         a.user_id AS evaluator_id,
-        a.date AS assessment_date,
-        a.result AS overall_result,
-        ad.assessment_name AS aspect_name,
-        ad.assessment_rank AS aspect_rank,
-        ad.result AS aspect_result
+        u.username AS evaluator_name, -- ชื่อผู้ประเมิน
+        a.aspect AS aspect_name,
+        a.assessment_rank AS aspect_rank,
+        a.assessment_date AS assessment_date,
+        a.status AS status
       FROM assessments a
-      JOIN assessment_details ad ON a.id = ad.assessment_id
+      JOIN children c ON a.child_id = c.child_id
+      JOIN users u ON a.user_id = u.user_id
       WHERE a.child_id = ?`;
 
     const [results] = await pool.query(query, [child_id]);
