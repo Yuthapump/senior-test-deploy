@@ -45,6 +45,7 @@ const upload = multer({
 // Controller to handle profile picture upload
 const updateProfilePic = async (req, res) => {
   const { user_id } = req.body;
+
   const profilePic = req.file ? req.file.path : null;
 
   if (!user_id || !profilePic) {

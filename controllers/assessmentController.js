@@ -6,6 +6,10 @@ const getAssessmentsByAspect = async (req, res) => {
   // const user_id = req.params;
 
   try {
+    console.log("child_id: ", child_id);
+    console.log("aspect: ", aspect);
+    console.log("user_id: ", user_id);
+
     // คำสั่ง SQL สำหรับดึงข้อมูลการประเมินที่มีอยู่สำหรับ child_id และ aspect ที่ระบุ
     const query = `
       SELECT 

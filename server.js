@@ -48,9 +48,9 @@ const upload = multer({
 // Middleware สำหรับ CORS
 app.use(
   cors({
-    //origin: "*", // อนุญาตทุกโดเมน
+    origin: "*", // อนุญาตทุกโดเมน
     //origin: process.env.CORS_ORIGIN_TEST,
-    origin: process.env.CORS_ORIGIN,
+    //origin: process.env.CORS_ORIGIN,
     methods: ["GET", "POST", "PUT"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
