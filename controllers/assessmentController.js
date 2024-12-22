@@ -3,7 +3,6 @@ const { pool } = require("../config/db");
 
 const getAssessmentsByAspect = async (req, res) => {
   const { child_id, aspect, user_id } = req.params;
-  // const user_id = req.params;
 
   try {
     console.log("child_id: ", child_id);
@@ -20,7 +19,7 @@ const getAssessmentsByAspect = async (req, res) => {
       FROM assessments a
       JOIN assessment_details ad ON a.assessment_rank = ad.assessment_rank
       WHERE a.child_id = ? AND ad.aspect = ?
-      ORDER BY ad.assessment_rank ASC
+      ORDER BY ad.assessment_rank DESC LIMIT 1
     `;
     const [rows] = await pool.query(query, [child_id, aspect]);
 
@@ -75,13 +74,27 @@ const getAssessmentsByAspect = async (req, res) => {
       );
 
       if (inProgressAssessments.length > 0) {
-        // คืนค่าการประเมินที่ยังอยู่ในสถานะ 'in_progress'
+        // คืนค่าการประเมินที่ยังอยู่ในสถานะ 'in_progress' และแสดงรายละเอียดการประเมิน
         const inProgressAssessment = inProgressAssessments
           .sort((a, b) => a.assessment_rank - b.assessment_rank)
           .pop();
+
+        // ดึงรายละเอียดของการประเมินจาก assessment_details ตาม assessment_rank
+        const assessmentDetailsQuery = `
+          SELECT * FROM assessment_details
+          WHERE assessment_rank = ? AND aspect = ?
+        `;
+        const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
+          inProgressAssessment.assessment_rank,
+          aspect,
+        ]);
+
         return res.status(200).json({
           message: "การประเมินอยู่ระหว่างดำเนินการ",
-          data: inProgressAssessment,
+          data: {
+            ...inProgressAssessment,
+            details: assessmentDetails[0], // ส่งรายละเอียดจาก assessment_details
+          },
         });
       } else {
         // หากการประเมินทั้งหมดเสร็จสิ้นแล้ว
