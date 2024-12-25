@@ -9,12 +9,10 @@ const getAssessmentsByAspect = async (req, res) => {
     console.log("child_id: ", child_id);
     console.log("aspect: ", aspect);
     console.log("user_id: ", user_id);
-    console.log("child_age: ", child_age); // แสดงค่า age ใน console
+    console.log("child_age: ", child_age); // แสดงค่า child_age ใน console
 
-    // แปลง age จากรูปแบบ YYYY-MM-DD เป็นจำนวนเดือน
-    const birthDate = moment(child_age, "YYYY-MM-DD");
-    const currentDate = moment();
-    const ageInMonths = currentDate.diff(birthDate, "months");
+    // แปลง child_age จากจำนวนเดือนเป็นจำนวนเดือน
+    const ageInMonths = parseInt(child_age, 10);
 
     // คำสั่ง SQL สำหรับดึงข้อมูลการประเมินที่มีอยู่สำหรับ child_id และ aspect ที่ระบุ
     const query = `
