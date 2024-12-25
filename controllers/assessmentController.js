@@ -53,7 +53,17 @@ const getAssessmentsByAspect = async (req, res) => {
         child_id,
         defaultAssessment[0].assessment_rank,
         aspect,
-        user_id, // เพิ่ม user_id ในคำสั่ง SQL
+        user_id,
+      ]);
+
+      // ดึงรายละเอียดของการประเมินจาก assessment_details ตาม assessment_rank
+      const assessmentDetailsQuery = `
+    SELECT * FROM assessment_details
+    WHERE assessment_rank = ? AND aspect = ?
+  `;
+      const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
+        defaultAssessment[0].assessment_rank,
+        aspect,
       ]);
 
       return res.status(201).json({
@@ -63,8 +73,10 @@ const getAssessmentsByAspect = async (req, res) => {
           child_id: child_id,
           assessment_rank: defaultAssessment[0].assessment_rank,
           aspect: defaultAssessment[0].aspect,
+          assessment_name: defaultAssessment[0].assessment_name,
           status: "in_progress",
           assessment_date: new Date().toISOString(),
+          details: assessmentDetails[0], // ส่งรายละเอียดจาก assessment_details
         },
       });
     } else {
