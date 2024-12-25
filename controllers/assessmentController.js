@@ -3,11 +3,18 @@ const { pool } = require("../config/db");
 
 const getAssessmentsByAspect = async (req, res) => {
   const { child_id, aspect, user_id } = req.params;
+  const { child_age } = req.body; // รับค่า age จาก body ของ request
 
   try {
     console.log("child_id: ", child_id);
     console.log("aspect: ", aspect);
     console.log("user_id: ", user_id);
+    console.log("child_age: ", child_age); // แสดงค่า age ใน console
+
+    // แปลง age จากรูปแบบ YYYY-MM-DD เป็นจำนวนเดือน
+    const birthDate = moment(child_age, "YYYY-MM-DD");
+    const currentDate = moment();
+    const ageInMonths = currentDate.diff(birthDate, "months");
 
     // คำสั่ง SQL สำหรับดึงข้อมูลการประเมินที่มีอยู่สำหรับ child_id และ aspect ที่ระบุ
     const query = `
@@ -32,11 +39,15 @@ const getAssessmentsByAspect = async (req, res) => {
           assessment_rank,
           assessment_name
         FROM assessment_details
-        WHERE aspect = ?
+        WHERE aspect = ? AND age_range_start <= ? AND age_range_end >= ?
         ORDER BY assessment_rank ASC
         LIMIT 1
       `;
-      const [defaultAssessment] = await pool.query(defaultQuery, [aspect]);
+      const [defaultAssessment] = await pool.query(defaultQuery, [
+        aspect,
+        ageInMonths,
+        ageInMonths,
+      ]);
 
       if (defaultAssessment.length === 0) {
         return res.status(404).json({
@@ -58,16 +69,17 @@ const getAssessmentsByAspect = async (req, res) => {
 
       // ดึงรายละเอียดของการประเมินจาก assessment_details ตาม assessment_rank
       const assessmentDetailsQuery = `
-    SELECT * FROM assessment_details
-    WHERE assessment_rank = ? AND aspect = ?
-  `;
+        SELECT * FROM assessment_details
+        WHERE assessment_rank = ? AND aspect = ?
+      `;
       const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
         defaultAssessment[0].assessment_rank,
         aspect,
       ]);
 
       return res.status(201).json({
-        message: "การประเมินถูกตั้งค่าเป็นเริ่มต้นด้วยอันดับ 1",
+        message:
+          "การประเมินถูกตั้งค่าเป็นเริ่มต้นด้วยอันดับที่ใกล้เคียงกับอายุของเด็ก",
         data: {
           assessment_id: result.insertId,
           child_id: child_id,
