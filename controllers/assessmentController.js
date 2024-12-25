@@ -3,16 +3,15 @@ const { pool } = require("../config/db");
 
 const getAssessmentsByAspect = async (req, res) => {
   const { child_id, aspect, user_id, childAgeInMonths } = req.params;
-  // const { child_age } = req.body; // รับค่า age จาก body ของ request
 
   try {
     console.log("child_id: ", child_id);
     console.log("aspect: ", aspect);
     console.log("user_id: ", user_id);
-    console.log("child_age: ", childAgeInMonths); // แสดงค่า child_age ใน console
+    console.log("childAgeInMonths: ", childAgeInMonths); // แสดงค่า childAgeInMonths ใน console
 
-    // // แปลง child_age จากจำนวนเดือนเป็นจำนวนเดือน
-    // const ageInMonths = parseInt(child_age, 10);
+    // แปลง childAgeInMonths จากสตริงเป็นจำนวนเต็ม
+    const ageInMonths = parseInt(childAgeInMonths, 10);
 
     // คำสั่ง SQL สำหรับดึงข้อมูลการประเมินที่มีอยู่สำหรับ child_id และ aspect ที่ระบุ
     const query = `
@@ -35,19 +34,21 @@ const getAssessmentsByAspect = async (req, res) => {
           id AS assessment_detail_id,
           aspect,
           assessment_rank,
-          assessment_name
+          assessment_name,
+          age_range
         FROM assessment_details
-        WHERE aspect = ? AND age_range_start <= ? AND age_range_end >= ?
+        WHERE aspect = ?
         ORDER BY assessment_rank ASC
-        LIMIT 1
       `;
-      const [defaultAssessment] = await pool.query(defaultQuery, [
-        aspect,
-        ageInMonths,
-        ageInMonths,
-      ]);
+      const [defaultAssessments] = await pool.query(defaultQuery, [aspect]);
 
-      if (defaultAssessment.length === 0) {
+      // หา assessment ที่มีช่วงอายุที่ตรงกับ ageInMonths
+      const defaultAssessment = defaultAssessments.find((assessment) => {
+        const [start, end] = assessment.age_range.split("-").map(Number);
+        return ageInMonths >= start && ageInMonths <= end;
+      });
+
+      if (!defaultAssessment) {
         return res.status(404).json({
           error: "ไม่พบข้อมูลการประเมินสำหรับด้านที่ระบุ",
         });
@@ -60,7 +61,7 @@ const getAssessmentsByAspect = async (req, res) => {
       `;
       const [result] = await pool.query(insertQuery, [
         child_id,
-        defaultAssessment[0].assessment_rank,
+        defaultAssessment.assessment_rank,
         aspect,
         user_id,
       ]);
@@ -71,7 +72,7 @@ const getAssessmentsByAspect = async (req, res) => {
         WHERE assessment_rank = ? AND aspect = ?
       `;
       const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
-        defaultAssessment[0].assessment_rank,
+        defaultAssessment.assessment_rank,
         aspect,
       ]);
 
@@ -81,9 +82,9 @@ const getAssessmentsByAspect = async (req, res) => {
         data: {
           assessment_id: result.insertId,
           child_id: child_id,
-          assessment_rank: defaultAssessment[0].assessment_rank,
-          aspect: defaultAssessment[0].aspect,
-          assessment_name: defaultAssessment[0].assessment_name,
+          assessment_rank: defaultAssessment.assessment_rank,
+          aspect: defaultAssessment.aspect,
+          assessment_name: defaultAssessment.assessment_name,
           status: "in_progress",
           assessment_date: new Date().toISOString(),
           details: assessmentDetails[0], // ส่งรายละเอียดจาก assessment_details
