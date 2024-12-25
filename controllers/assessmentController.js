@@ -2,17 +2,17 @@
 const { pool } = require("../config/db");
 
 const getAssessmentsByAspect = async (req, res) => {
-  const { child_id, aspect, user_id } = req.params;
-  const { child_age } = req.body; // รับค่า age จาก body ของ request
+  const { child_id, aspect, user_id, childAgeInMonths } = req.params;
+  // const { child_age } = req.body; // รับค่า age จาก body ของ request
 
   try {
     console.log("child_id: ", child_id);
     console.log("aspect: ", aspect);
     console.log("user_id: ", user_id);
-    console.log("child_age: ", child_age); // แสดงค่า child_age ใน console
+    console.log("child_age: ", childAgeInMonths); // แสดงค่า child_age ใน console
 
-    // แปลง child_age จากจำนวนเดือนเป็นจำนวนเดือน
-    const ageInMonths = parseInt(child_age, 10);
+    // // แปลง child_age จากจำนวนเดือนเป็นจำนวนเดือน
+    // const ageInMonths = parseInt(child_age, 10);
 
     // คำสั่ง SQL สำหรับดึงข้อมูลการประเมินที่มีอยู่สำหรับ child_id และ aspect ที่ระบุ
     const query = `

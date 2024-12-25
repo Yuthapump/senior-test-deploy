@@ -8,7 +8,7 @@ const assessmentController = require("../controllers/assessmentController");
 
 // Route to fetch assessment details by child_id and aspect
 router.get(
-  "/assessments-get-details/:child_id/:aspect/:user_id",
+  "/assessments-get-details/:child_id/:aspect/:user_id/:childAgeInMonths",
   assessmentController.getAssessmentsByAspect
 );
 
