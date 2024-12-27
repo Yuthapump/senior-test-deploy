@@ -12,8 +12,11 @@ router.get(
   assessmentController.getAssessmentsByAspect
 );
 
-// Route to update assessments by assessment_id
-("/assessments-next/:child_id");
+// Route to fetch the next assessment for a child
+router.post(
+  "/assessments-next/:child_id/:aspect",
+  assessmentController.fetchNextAssessment
+);
 
 // Route to fetch the next assessment for a child
 router.get(
