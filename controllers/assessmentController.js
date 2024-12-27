@@ -160,7 +160,7 @@ const fetchNextAssessment = async (req, res) => {
       SELECT assessment_rank 
       FROM assessment_details_${aspect.toLowerCase()} 
       WHERE id = ?`;
-    const [rankResult] = await pool.query(rankQuery, [assessment_id]);
+    const [rankResult] = await pool.query(rankQuery, [assessmentInsert_id]);
     const assessmentRank = rankResult[0].assessment_rank;
     console.log("Current assessment_rank:", assessmentRank);
 
