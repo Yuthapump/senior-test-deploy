@@ -135,7 +135,7 @@ const getAssessmentsByAspect = async (req, res) => {
 };
 
 const fetchNextAssessment = async (req, res) => {
-  const { assessmentInsert_id } = req.body; // รับ assessment_id จาก frontend
+  const { assessmentInsert_id } = req.body; // รับ assessmentInsert_id จาก frontend
   const { child_id, aspect } = req.params; // รับ child_id และ aspect จาก URL
 
   try {
@@ -151,19 +151,43 @@ const fetchNextAssessment = async (req, res) => {
       // ถ้าไม่มีการอัปเดต (อาจเป็นเพราะสถานะไม่ใช่ 'in_progress')
       return res
         .status(404)
-        .json({ message: "Assessment not found or already completed" });
+        .json({ message: "ไม่พบการประเมินหรือการประเมินเสร็จสิ้นแล้ว" });
     }
 
-    // ค้นหาการประเมินถัดไปที่ต้องทำสำหรับ aspect นี้
-    // แสดงค่า assessment_rank ที่ถูกนำมาใช้ในการเช็ค
+    // ดึง assessment_id จากตาราง assessments
+    const getAssessmentIdQuery = `
+      SELECT assessment_id 
+      FROM assessments 
+      WHERE id = ?`;
+    const [assessmentIdResult] = await pool.query(getAssessmentIdQuery, [
+      assessmentInsert_id,
+    ]);
+
+    if (!assessmentIdResult.length) {
+      return res.status(404).json({
+        message: "ไม่พบ assessment_id สำหรับ assessmentInsert_id นี้",
+      });
+    }
+
+    const assessmentId = assessmentIdResult[0].assessment_id;
+
+    // ดึง assessment_rank จากตาราง assessment_details_${aspect}
     const rankQuery = `
       SELECT assessment_rank 
       FROM assessment_details_${aspect.toLowerCase()} 
       WHERE id = ?`;
-    const [rankResult] = await pool.query(rankQuery, [assessmentInsert_id]);
+    const [rankResult] = await pool.query(rankQuery, [assessmentId]);
+
+    if (!rankResult.length) {
+      return res
+        .status(404)
+        .json({ message: "ไม่พบรายละเอียดการประเมินสำหรับ assessment_id นี้" });
+    }
+
     const assessmentRank = rankResult[0].assessment_rank;
     console.log("Current assessment_rank:", assessmentRank);
 
+    // ค้นหาการประเมินถัดไป
     const nextAssessmentQuery = `
       SELECT ad.id AS assessment_detail_id, ad.aspect, ad.assessment_rank, ad.assessment_name
       FROM assessment_details_${aspect.toLowerCase()} ad
@@ -175,23 +199,23 @@ const fetchNextAssessment = async (req, res) => {
       assessmentRank,
     ]);
 
-    // แสดงผลลัพธ์ที่ได้จากการเรียกใช้คำสั่ง SQL
     console.log("Next assessment:", nextAssessment);
 
     if (nextAssessment.length > 0) {
       // ถ้ามีการประเมินถัดไป
       const insertQuery = `
-        INSERT INTO assessments (child_id, assessment_rank, aspect, status, user_id)
-        VALUES (?, ?, ?, 'in_progress', ?)`;
+        INSERT INTO assessments (child_id, assessment_id, assessment_rank, aspect, status, user_id)
+        VALUES (?, ?, ?, ?, 'in_progress', ?)`;
       const [result] = await pool.query(insertQuery, [
         child_id,
+        nextAssessment[0].assessment_detail_id,
         nextAssessment[0].assessment_rank,
         aspect,
-        req.user.id, // Assuming user_id is available in req.user
+        req.user.id, // สมมติว่า user_id อยู่ใน req.user
       ]);
 
       return res.status(201).json({
-        message: "Next assessment created and loaded",
+        message: "สร้างและโหลดการประเมินถัดไปสำเร็จ",
         next_assessment: {
           assessment_id: result.insertId,
           ...nextAssessment[0],
@@ -200,13 +224,13 @@ const fetchNextAssessment = async (req, res) => {
     } else {
       // ถ้าไม่มีการประเมินถัดไป
       return res.status(200).json({
-        message: "Assessment passed and no more assessments for this aspect",
+        message: "ผ่านการประเมินและไม่มีการประเมินเพิ่มเติมสำหรับ aspect นี้",
       });
     }
   } catch (error) {
     console.error(error);
     res.status(500).json({
-      error: "Failed to update assessment status or fetch next assessment",
+      error: "ไม่สามารถอัปเดตสถานะหรือดึงการประเมินถัดไปได้",
     });
   }
 };
