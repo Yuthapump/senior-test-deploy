@@ -79,14 +79,14 @@ const getAssessmentsByAspect = async (req, res) => {
         aspect,
       ]);
 
-      const testId = result.insertId;
-      console.log("testId: ", testId);
+      // const testId = result.insertId;
+      // console.log("testId: ", testId);
 
       return res.status(201).json({
         message:
           "การประเมินถูกตั้งค่าเป็นเริ่มต้นด้วยอันดับที่ใกล้เคียงกับอายุของเด็ก",
         data: {
-          assessment_id: result.insertId,
+          assessmentInsert_id: result.insertId,
           child_id: child_id,
           assessment_rank: defaultAssessment.assessment_rank,
           aspect: defaultAssessment.aspect,
