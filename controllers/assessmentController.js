@@ -136,6 +136,10 @@ const fetchNextAssessment = async (req, res) => {
   const { assessment_id } = req.body; // รับ assessment_id จาก frontend
   const { child_id, aspect } = req.params; // รับ child_id และ aspect จาก URL
 
+  console.log("child_id: ", child_id);
+  console.log("aspect: ", aspect);
+  console.log("assessment_id: ", assessment_id);
+
   try {
     // อัปเดตสถานะของการประเมินที่กำลังอยู่ในสถานะ 'in_progress' เป็น 'passed'
     const updateQuery = `
