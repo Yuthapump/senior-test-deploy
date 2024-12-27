@@ -135,7 +135,7 @@ const getAssessmentsByAspect = async (req, res) => {
 };
 
 const fetchNextAssessment = async (req, res) => {
-  const { assessment_id } = req.body; // รับ assessment_id จาก frontend
+  const { assessmentInsert_id } = req.body; // รับ assessment_id จาก frontend
   const { child_id, aspect } = req.params; // รับ child_id และ aspect จาก URL
 
   try {
@@ -145,7 +145,7 @@ const fetchNextAssessment = async (req, res) => {
       SET status = 'passed'
       WHERE id = ? AND status = 'in_progress'`;
 
-    const [updateResult] = await pool.query(updateQuery, [assessment_id]);
+    const [updateResult] = await pool.query(updateQuery, [assessmentInsert_id]);
 
     if (updateResult.affectedRows === 0) {
       // ถ้าไม่มีการอัปเดต (อาจเป็นเพราะสถานะไม่ใช่ 'in_progress')
