@@ -155,13 +155,12 @@ const fetchNextAssessment = async (req, res) => {
     // ค้นหาการประเมินถัดไปที่ต้องทำสำหรับ aspect นี้
     const nextAssessmentQuery = `
       SELECT ad.id AS assessment_detail_id, ad.aspect, ad.assessment_rank, ad.assessment_name
-      FROM assessment_details ad
-      WHERE ad.aspect = ? AND ad.assessment_rank > (SELECT assessment_rank FROM assessment_details WHERE id = ?)
+      FROM assessment_details_${aspect.toLowerCase()} ad
+      WHERE ad.assessment_rank > (SELECT assessment_rank FROM assessment_details_${aspect.toLowerCase()} WHERE id = ?)
       ORDER BY ad.assessment_rank ASC
       LIMIT 1`;
 
     const [nextAssessment] = await pool.query(nextAssessmentQuery, [
-      aspect,
       assessment_id,
     ]);
 

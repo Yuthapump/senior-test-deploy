@@ -66,13 +66,13 @@ app.use("/uploads", express.static("uploads"));
 app.use("/api/auth", authRoutes);
 
 // Profile Routes
-app.use("/api/profile", profileRoutes);
+app.use("/api/profiles", profileRoutes);
 
 // Child Routes
-app.use("/api/child", childRoutes);
+app.use("/api/childs", childRoutes);
 
 // Assessment Routes
-app.use("/api/assessment", assessmentRoutes);
+app.use("/api/assessments", assessmentRoutes);
 
 // เริ่มเซิร์ฟเวอร์สำหรับทดสอบ
 app.listen(port, () => {
