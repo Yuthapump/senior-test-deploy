@@ -135,12 +135,8 @@ const getAssessmentsByAspect = async (req, res) => {
 };
 
 const fetchNextAssessment = async (req, res) => {
-  const { assessmentInsert_id } = req.body; // รับ assessment_id จาก frontend
+  const { assessment_id } = req.body; // รับ assessment_id จาก frontend
   const { child_id, aspect } = req.params; // รับ child_id และ aspect จาก URL
-
-  console.log("child_id: ", child_id);
-  console.log("aspect: ", aspect);
-  console.log("assessmentInsert_id: ", assessmentInsert_id);
 
   try {
     // อัปเดตสถานะของการประเมินที่กำลังอยู่ในสถานะ 'in_progress' เป็น 'passed'
@@ -149,7 +145,7 @@ const fetchNextAssessment = async (req, res) => {
       SET status = 'passed'
       WHERE id = ? AND status = 'in_progress'`;
 
-    const [updateResult] = await pool.query(updateQuery, [assessmentInsert_id]);
+    const [updateResult] = await pool.query(updateQuery, [assessment_id]);
 
     if (updateResult.affectedRows === 0) {
       // ถ้าไม่มีการอัปเดต (อาจเป็นเพราะสถานะไม่ใช่ 'in_progress')
@@ -159,16 +155,28 @@ const fetchNextAssessment = async (req, res) => {
     }
 
     // ค้นหาการประเมินถัดไปที่ต้องทำสำหรับ aspect นี้
+    // แสดงค่า assessment_rank ที่ถูกนำมาใช้ในการเช็ค
+    const rankQuery = `
+      SELECT assessment_rank 
+      FROM assessment_details_${aspect.toLowerCase()} 
+      WHERE id = ?`;
+    const [rankResult] = await pool.query(rankQuery, [assessment_id]);
+    const assessmentRank = rankResult[0].assessment_rank;
+    console.log("Current assessment_rank:", assessmentRank);
+
     const nextAssessmentQuery = `
       SELECT ad.id AS assessment_detail_id, ad.aspect, ad.assessment_rank, ad.assessment_name
       FROM assessment_details_${aspect.toLowerCase()} ad
-      WHERE ad.assessment_rank > (SELECT assessment_rank FROM assessment_details_${aspect.toLowerCase()} WHERE id = ?)
+      WHERE ad.assessment_rank > ?
       ORDER BY ad.assessment_rank ASC
       LIMIT 1`;
 
     const [nextAssessment] = await pool.query(nextAssessmentQuery, [
-      assessmentInsert_id,
+      assessmentRank,
     ]);
+
+    // แสดงผลลัพธ์ที่ได้จากการเรียกใช้คำสั่ง SQL
+    console.log("Next assessment:", nextAssessment);
 
     if (nextAssessment.length > 0) {
       // ถ้ามีการประเมินถัดไป
