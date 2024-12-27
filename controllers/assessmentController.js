@@ -59,14 +59,15 @@ const getAssessmentsByAspect = async (req, res) => {
 
       // แทรกการประเมินใหม่โดยกำหนดสถานะเป็น 'in_progress' และ user_id
       const insertQuery = `
-        INSERT INTO assessments (child_id, assessment_rank, aspect, status, user_id)
-        VALUES (?, ?, ?, 'in_progress', ?)
+        INSERT INTO assessments (child_id, assessment_rank, aspect, status, user_id, assessment_id)
+        VALUES (?, ?, ?, 'in_progress', ?, ?)
       `;
       const [result] = await pool.query(insertQuery, [
         child_id,
         defaultAssessment.assessment_rank,
         aspect,
         user_id,
+        defaultAssessment.assessment_detail_id, // เพิ่ม assessment_id จาก assessment_details
       ]);
 
       // ดึงรายละเอียดของการประเมินจาก assessment_details ตาม assessment_rank
