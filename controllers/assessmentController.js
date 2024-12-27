@@ -79,6 +79,9 @@ const getAssessmentsByAspect = async (req, res) => {
         aspect,
       ]);
 
+      const testId = result.insertId;
+      console.log("testId: ", testId);
+
       return res.status(201).json({
         message:
           "การประเมินถูกตั้งค่าเป็นเริ่มต้นด้วยอันดับที่ใกล้เคียงกับอายุของเด็ก",
