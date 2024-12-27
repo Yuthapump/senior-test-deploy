@@ -18,11 +18,6 @@ router.post(
   assessmentController.fetchNextAssessment
 );
 
-// Route to fetch the next assessment for a child
-router.get(
-  "/assessments-next/:child_id",
-  assessmentController.fetchNextAssessment
-);
 router.get(
   "/assessments-child/:child_id",
   assessmentController.getAssessmentsByChild
