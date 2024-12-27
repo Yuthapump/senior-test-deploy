@@ -18,10 +18,10 @@ const getAssessmentsByAspect = async (req, res) => {
 
     // คำสั่ง SQL สำหรับดึงข้อมูลการประเมินที่มีอยู่สำหรับ child_id และ aspect ที่ระบุ
     const query = `
-      SELECT 
-        a.id AS assessment_id,
+      SELECT
+        a.id AS assessmentInsert_id,
+        a.assessment_date,
         ad.assessment_rank,
-        ad.assessment_name,
         a.status
       FROM assessments a
       JOIN ${tableName} ad ON a.assessment_rank = ad.assessment_rank
@@ -79,9 +79,6 @@ const getAssessmentsByAspect = async (req, res) => {
         aspect,
       ]);
 
-      // const testId = result.insertId;
-      // console.log("testId: ", testId);
-
       return res.status(201).json({
         message:
           "การประเมินถูกตั้งค่าเป็นเริ่มต้นด้วยอันดับที่ใกล้เคียงกับอายุของเด็ก",
@@ -121,6 +118,8 @@ const getAssessmentsByAspect = async (req, res) => {
         return res.status(200).json({
           message: "การประเมินอยู่ระหว่างดำเนินการ",
           data: {
+            assessmentInsert_id: inProgressAssessment.assessment_id,
+            assessment_date: inProgressAssessment.assessment_date,
             ...inProgressAssessment,
             details: assessmentDetails[0], // ส่งรายละเอียดจาก assessment_details
           },
@@ -136,12 +135,12 @@ const getAssessmentsByAspect = async (req, res) => {
 };
 
 const fetchNextAssessment = async (req, res) => {
-  const { assessment_id } = req.body; // รับ assessment_id จาก frontend
+  const { assessmentInsert_id } = req.body; // รับ assessment_id จาก frontend
   const { child_id, aspect } = req.params; // รับ child_id และ aspect จาก URL
 
   console.log("child_id: ", child_id);
   console.log("aspect: ", aspect);
-  console.log("assessment_id: ", assessment_id);
+  console.log("assessmentInsert_id: ", assessmentInsert_id);
 
   try {
     // อัปเดตสถานะของการประเมินที่กำลังอยู่ในสถานะ 'in_progress' เป็น 'passed'
@@ -150,7 +149,7 @@ const fetchNextAssessment = async (req, res) => {
       SET status = 'passed'
       WHERE id = ? AND status = 'in_progress'`;
 
-    const [updateResult] = await pool.query(updateQuery, [assessment_id]);
+    const [updateResult] = await pool.query(updateQuery, [assessmentInsert_id]);
 
     if (updateResult.affectedRows === 0) {
       // ถ้าไม่มีการอัปเดต (อาจเป็นเพราะสถานะไม่ใช่ 'in_progress')
@@ -168,7 +167,7 @@ const fetchNextAssessment = async (req, res) => {
       LIMIT 1`;
 
     const [nextAssessment] = await pool.query(nextAssessmentQuery, [
-      assessment_id,
+      assessmentInsert_id,
     ]);
 
     if (nextAssessment.length > 0) {
