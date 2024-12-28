@@ -174,10 +174,10 @@ const fetchNextAssessment = async (req, res) => {
     const assessmentDetailsId =
       assessmentDetailsIdResult[0].assessment_details_id;
 
-    // ดึง assessment_rank จากตาราง assessment_details_${aspect}
+    // ดึง assessment_rank จากตาราง assessment_details
     const rankQuery = `
       SELECT assessment_rank 
-      FROM assessment_details_${aspect.toLowerCase()} 
+      FROM assessment_details 
       WHERE assessment_details_id = ?`;
     const [rankResult] = await pool.query(rankQuery, [assessmentDetailsId]);
 
@@ -193,13 +193,14 @@ const fetchNextAssessment = async (req, res) => {
     // ค้นหาการประเมินถัดไป
     const nextAssessmentQuery = `
       SELECT ad.assessment_details_id AS assessment_detail_id, ad.aspect, ad.assessment_rank, ad.assessment_name
-      FROM assessment_details_${aspect.toLowerCase()} ad
-      WHERE ad.assessment_rank > ?
+      FROM assessment_details ad
+      WHERE ad.assessment_rank > ? AND ad.aspect = ?
       ORDER BY ad.assessment_rank ASC
       LIMIT 1`;
 
     const [nextAssessment] = await pool.query(nextAssessmentQuery, [
       assessmentRank,
+      aspect,
     ]);
 
     console.log("Next assessment:", nextAssessment);
@@ -219,7 +220,7 @@ const fetchNextAssessment = async (req, res) => {
 
       // ดึงรายละเอียดของการประเมินจาก assessment_details ตาม assessment_rank
       const assessmentDetailsQuery = `
-        SELECT * FROM assessment_details_${aspect.toLowerCase()}
+        SELECT * FROM assessment_details
         WHERE assessment_rank = ? AND aspect = ?
       `;
       const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
