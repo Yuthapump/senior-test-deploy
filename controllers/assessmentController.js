@@ -136,7 +136,7 @@ const getAssessmentsByAspect = async (req, res) => {
 };
 
 const fetchNextAssessment = async (req, res) => {
-  const { assessment_id } = req.body; // รับ assessment_id จาก frontend
+  const { assessment_id, user_id } = req.body; // รับ จาก frontend
   const { child_id, aspect } = req.params; // รับ child_id และ aspect จาก URL
 
   try {
@@ -214,7 +214,7 @@ const fetchNextAssessment = async (req, res) => {
         nextAssessment[0].assessment_detail_id,
         nextAssessment[0].assessment_rank,
         aspect,
-        req.user.id, // สมมติว่า user_id อยู่ใน req.user
+        user_id,
       ]);
 
       return res.status(201).json({
