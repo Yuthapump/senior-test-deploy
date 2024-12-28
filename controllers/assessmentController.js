@@ -14,7 +14,7 @@ const getAssessmentsByAspect = async (req, res) => {
     const ageInMonths = parseInt(childAgeInMonths, 10);
 
     // กำหนดชื่อตารางตาม aspect
-    const tableName = `assessment_details_${aspect.toLowerCase()}`;
+    const tableName = `assessment_details`;
 
     // คำสั่ง SQL สำหรับดึงข้อมูลการประเมินที่มีอยู่สำหรับ child_id และ aspect ที่ระบุ
     const query = `
@@ -24,7 +24,7 @@ const getAssessmentsByAspect = async (req, res) => {
         ad.assessment_rank,
         a.status
       FROM assessments a
-      JOIN ${tableName} ad ON a.assessment_rank = ad.assessment_rank
+      JOIN ${tableName} ad ON a.assessment_details_id = ad.assessment_details_id
       WHERE a.child_id = ? AND ad.aspect = ?
       ORDER BY ad.assessment_rank DESC LIMIT 1
     `;
