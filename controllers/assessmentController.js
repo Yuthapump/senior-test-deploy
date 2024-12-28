@@ -19,7 +19,7 @@ const getAssessmentsByAspect = async (req, res) => {
     // คำสั่ง SQL สำหรับดึงข้อมูลการประเมินที่มีอยู่สำหรับ child_id และ aspect ที่ระบุ
     const query = `
       SELECT
-        a.id AS assessmentInsert_id,
+        a.assessment_id,
         a.assessment_date,
         ad.assessment_rank,
         a.status
@@ -34,7 +34,7 @@ const getAssessmentsByAspect = async (req, res) => {
       // ถ้ายังไม่มีการประเมิน จึงต้องสร้างการประเมินใหม่
       const defaultQuery = `
         SELECT 
-          id AS assessment_detail_id,
+          assessment_details_id,
           aspect,
           assessment_rank,
           assessment_name,
@@ -59,7 +59,7 @@ const getAssessmentsByAspect = async (req, res) => {
 
       // แทรกการประเมินใหม่โดยกำหนดสถานะเป็น 'in_progress' และ user_id
       const insertQuery = `
-        INSERT INTO assessments (child_id, assessment_rank, aspect, status, user_id, assessment_id)
+        INSERT INTO assessments (child_id, assessment_rank, aspect, status, user_id, assessment_details_id)
         VALUES (?, ?, ?, 'in_progress', ?, ?)
       `;
       const [result] = await pool.query(insertQuery, [
@@ -67,7 +67,7 @@ const getAssessmentsByAspect = async (req, res) => {
         defaultAssessment.assessment_rank,
         aspect,
         user_id,
-        defaultAssessment.assessment_detail_id, // เพิ่ม assessment_id จาก assessment_details
+        defaultAssessment.assessment_details_id, // เพิ่ม assessment_details_id จาก assessment_details
       ]);
 
       // ดึงรายละเอียดของการประเมินจาก assessment_details ตาม assessment_rank
@@ -84,7 +84,7 @@ const getAssessmentsByAspect = async (req, res) => {
         message:
           "การประเมินถูกตั้งค่าเป็นเริ่มต้นด้วยอันดับที่ใกล้เคียงกับอายุของเด็ก",
         data: {
-          assessmentInsert_id: result.insertId,
+          assessment_id: result.insertId,
           child_id: child_id,
           assessment_rank: defaultAssessment.assessment_rank,
           aspect: defaultAssessment.aspect,
@@ -119,7 +119,7 @@ const getAssessmentsByAspect = async (req, res) => {
         return res.status(200).json({
           message: "การประเมินอยู่ระหว่างดำเนินการ",
           data: {
-            assessmentInsert_id: inProgressAssessment.assessment_id,
+            assessment_id: inProgressAssessment.assessment_id,
             assessment_date: inProgressAssessment.assessment_date,
             ...inProgressAssessment,
             details: assessmentDetails[0], // ส่งรายละเอียดจาก assessment_details
