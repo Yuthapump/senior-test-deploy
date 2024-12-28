@@ -136,7 +136,7 @@ const getAssessmentsByAspect = async (req, res) => {
 };
 
 const fetchNextAssessment = async (req, res) => {
-  const { assessment_id, user_id } = req.body; // รับ จาก frontend
+  const { assessment_id, user_id } = req.body; // รับ assessment_id และ user_id จาก frontend
   const { child_id, aspect } = req.params; // รับ child_id และ aspect จาก URL
 
   try {
@@ -217,11 +217,28 @@ const fetchNextAssessment = async (req, res) => {
         user_id,
       ]);
 
+      // ดึงรายละเอียดของการประเมินจาก assessment_details ตาม assessment_rank
+      const assessmentDetailsQuery = `
+        SELECT * FROM assessment_details_${aspect.toLowerCase()}
+        WHERE assessment_rank = ? AND aspect = ?
+      `;
+      const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
+        nextAssessment[0].assessment_rank,
+        aspect,
+      ]);
+
       return res.status(201).json({
         message: "สร้างและโหลดการประเมินถัดไปสำเร็จ",
         next_assessment: {
           assessment_id: result.insertId,
-          ...nextAssessment[0],
+          child_id: child_id,
+          user_id: user_id,
+          assessment_rank: nextAssessment[0].assessment_rank,
+          aspect: nextAssessment[0].aspect,
+          assessment_name: nextAssessment[0].assessment_name,
+          status: "in_progress",
+          assessment_date: new Date().toISOString(),
+          details: assessmentDetails[0], // ส่งรายละเอียดจาก assessment_details
         },
       });
     } else {
