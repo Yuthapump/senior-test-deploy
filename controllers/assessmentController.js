@@ -136,7 +136,7 @@ const getAssessmentsByAspect = async (req, res) => {
 };
 
 const fetchNextAssessment = async (req, res) => {
-  const { assessmentInsert_id } = req.body; // รับ assessmentInsert_id จาก frontend
+  const { assessment_id } = req.body; // รับ assessment_id จาก frontend
   const { child_id, aspect } = req.params; // รับ child_id และ aspect จาก URL
 
   try {
@@ -144,9 +144,9 @@ const fetchNextAssessment = async (req, res) => {
     const updateQuery = `
       UPDATE assessments 
       SET status = 'passed'
-      WHERE id = ? AND status = 'in_progress'`;
+      WHERE assessment_id = ? AND status = 'in_progress'`;
 
-    const [updateResult] = await pool.query(updateQuery, [assessmentInsert_id]);
+    const [updateResult] = await pool.query(updateQuery, [assessment_id]);
 
     if (updateResult.affectedRows === 0) {
       // ถ้าไม่มีการอัปเดต (อาจเป็นเพราะสถานะไม่ใช่ 'in_progress')
@@ -155,34 +155,36 @@ const fetchNextAssessment = async (req, res) => {
         .json({ message: "ไม่พบการประเมินหรือการประเมินเสร็จสิ้นแล้ว" });
     }
 
-    // ดึง assessment_id จากตาราง assessments
-    const getAssessmentIdQuery = `
-      SELECT assessment_id 
+    // ดึง assessment_details_id จากตาราง assessments
+    const getAssessmentDetailsIdQuery = `
+      SELECT assessment_details_id 
       FROM assessments 
-      WHERE id = ?`;
-    const [assessmentIdResult] = await pool.query(getAssessmentIdQuery, [
-      assessmentInsert_id,
-    ]);
+      WHERE assessment_id = ?`;
+    const [assessmentDetailsIdResult] = await pool.query(
+      getAssessmentDetailsIdQuery,
+      [assessment_id]
+    );
 
-    if (!assessmentIdResult.length) {
+    if (!assessmentDetailsIdResult.length) {
       return res.status(404).json({
-        message: "ไม่พบ assessment_id สำหรับ assessmentInsert_id นี้",
+        message: "ไม่พบ assessment_details_id สำหรับ assessment_id นี้",
       });
     }
 
-    const assessmentId = assessmentIdResult[0].assessment_id;
+    const assessmentDetailsId =
+      assessmentDetailsIdResult[0].assessment_details_id;
 
     // ดึง assessment_rank จากตาราง assessment_details_${aspect}
     const rankQuery = `
       SELECT assessment_rank 
       FROM assessment_details_${aspect.toLowerCase()} 
-      WHERE id = ?`;
-    const [rankResult] = await pool.query(rankQuery, [assessmentId]);
+      WHERE assessment_details_id = ?`;
+    const [rankResult] = await pool.query(rankQuery, [assessmentDetailsId]);
 
     if (!rankResult.length) {
-      return res
-        .status(404)
-        .json({ message: "ไม่พบรายละเอียดการประเมินสำหรับ assessment_id นี้" });
+      return res.status(404).json({
+        message: "ไม่พบรายละเอียดการประเมินสำหรับ assessment_details_id นี้",
+      });
     }
 
     const assessmentRank = rankResult[0].assessment_rank;
@@ -190,7 +192,7 @@ const fetchNextAssessment = async (req, res) => {
 
     // ค้นหาการประเมินถัดไป
     const nextAssessmentQuery = `
-      SELECT ad.id AS assessment_detail_id, ad.aspect, ad.assessment_rank, ad.assessment_name
+      SELECT ad.assessment_details_id AS assessment_detail_id, ad.aspect, ad.assessment_rank, ad.assessment_name
       FROM assessment_details_${aspect.toLowerCase()} ad
       WHERE ad.assessment_rank > ?
       ORDER BY ad.assessment_rank ASC
@@ -205,7 +207,7 @@ const fetchNextAssessment = async (req, res) => {
     if (nextAssessment.length > 0) {
       // ถ้ามีการประเมินถัดไป
       const insertQuery = `
-        INSERT INTO assessments (child_id, assessment_id, assessment_rank, aspect, status, user_id)
+        INSERT INTO assessments (child_id, assessment_details_id, assessment_rank, aspect, status, user_id)
         VALUES (?, ?, ?, ?, 'in_progress', ?)`;
       const [result] = await pool.query(insertQuery, [
         child_id,
