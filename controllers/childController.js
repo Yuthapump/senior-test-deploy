@@ -188,8 +188,9 @@ const getChildData = async (req, res) => {
     const [children] = await connection.execute(query, params);
 
     if (children.length === 0) {
-      return res.status(404).json({
-        message: "ไม่พบข้อมูลเด็กที่ระบุ",
+      return res.status(200).json({
+        message: "ยังไม่มีข้อมูลเด็กในระบบ",
+        children: [],
       });
     }
 
