@@ -187,55 +187,16 @@ const getChildData = async (req, res) => {
 
     const [children] = await connection.execute(query, params);
 
-    if (children.length === 0) {
-      return res.status(404).json({
-        message: "ไม่พบข้อมูลเด็กที่ระบุ",
-      });
-    }
-
-    // ดึงข้อมูลการประเมินที่อยู่ในสถานะ 'in_progress' สำหรับเด็กแต่ละคน
-    const childDataWithAssessments = await Promise.all(
-      children.map(async (child) => {
-        const assessmentQuery = `
-          SELECT
-            a.assessment_id,
-            a.assessment_rank,
-            a.aspect,
-            a.assessment_details_id,
-            a.assessment_date,
-            ad.assessment_name,
-            ad.age_range,
-            ad.assessment_method,
-            ad.assessment_succession,
-            ad.training_method,
-            ad.training_device_name,
-            ad.training_device_image
-          FROM assessments a
-          JOIN assessment_details ad ON a.assessment_details_id = ad.assessment_details_id
-          WHERE a.child_id = ? AND a.status = 'in_progress'
-        `;
-        const [assessmentRows] = await pool.query(assessmentQuery, [
-          child.child_id,
-        ]);
-
-        return {
-          ...child,
-          assessments: assessmentRows,
-        };
-      })
-    );
-
-    return res.status(200).json({
-      message: "ดึงข้อมูลเด็กและการประเมินที่อยู่ในสถานะ 'in_progress' สำเร็จ",
-      data: childDataWithAssessments,
-    });
+    return res
+      .status(200)
+      .json({ success: true, children: children.length ? children : [] });
   } catch (error) {
-    console.error("Error fetching child data and assessments:", error);
-    return res.status(500).json({
-      error: "เกิดข้อผิดพลาดในการดึงข้อมูลเด็กและการประเมิน",
-    });
+    console.error("Error fetching child data: ", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   } finally {
-    if (connection) connection.release();
+    if (connection) connection.release(); // คืน connection กลับสู่ pool
   }
 };
 
