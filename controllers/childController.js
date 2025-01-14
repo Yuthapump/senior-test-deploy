@@ -154,7 +154,6 @@ const addChild = async (req, res) => {
 };
 
 // function to get child data by parent_id or supervisor_id
-// function to get child data by parent_id or supervisor_id
 const getChildData = async (req, res) => {
   let connection;
   try {
@@ -172,91 +171,63 @@ const getChildData = async (req, res) => {
     let query;
     const params = [];
 
-    // กำหนดคำสั่ง SQL ตาม parent_id หรือ supervisor_id
+    // ถ้าระบุ parent_id
     if (parent_id) {
-      query = `
-        SELECT 
-          c.*, 
-          a.assessment_id, 
-          a.status AS assessment_status, 
-          ad.assessment_name, 
-          ad.age_range, 
-          ad.assessment_method, 
-          ad.assessment_succession, 
-          ad.training_method, 
-          ad.training_device_name, 
-          ad.training_device_image
-        FROM children c
-        LEFT JOIN assessments a ON c.child_id = a.child_id AND a.status = 'in_progress'
-        LEFT JOIN assessment_details ad ON a.assessment_details_id = ad.assessment_details_id
-        WHERE c.parent_id = ?
-      `;
+      query =
+        "SELECT c.* FROM children c JOIN parent_children pc ON c.child_id = pc.child_id WHERE pc.parent_id = ?";
       params.push(parent_id);
-    } else if (supervisor_id) {
-      query = `
-        SELECT 
-          c.*, 
-          a.assessment_id, 
-          a.status AS assessment_status, 
-          ad.assessment_name, 
-          ad.age_range, 
-          ad.assessment_method, 
-          ad.assessment_succession, 
-          ad.training_method, 
-          ad.training_device_name, 
-          ad.training_device_image
-        FROM children c
-        LEFT JOIN assessments a ON c.child_id = a.child_id AND a.status = 'in_progress'
-        LEFT JOIN assessment_details ad ON a.assessment_details_id = ad.assessment_details_id
-        JOIN supervisor_children sc ON c.child_id = sc.child_id
-        WHERE sc.supervisor_id = ?
-      `;
+    }
+
+    // ถ้าระบุ supervisor_id
+    if (supervisor_id) {
+      query =
+        "SELECT c.* FROM children c JOIN supervisor_children sc ON c.child_id = sc.child_id WHERE sc.supervisor_id = ?";
       params.push(supervisor_id);
     }
 
-    // ดึงข้อมูลเด็กและการประเมินในคำสั่งเดียว
-    const [rows] = await connection.execute(query, params);
+    const [children] = await connection.execute(query, params);
 
-    if (rows.length === 0) {
+    if (children.length === 0) {
       return res.status(404).json({
         message: "ไม่พบข้อมูลเด็กที่ระบุ",
       });
     }
 
-    // จัดกลุ่มข้อมูลตาม child_id
-    const groupedData = rows.reduce((acc, row) => {
-      const childId = row.child_id;
-      if (!acc[childId]) {
-        acc[childId] = {
-          ...row,
-          assessments: [],
+    // ดึงข้อมูลการประเมินที่อยู่ในสถานะ 'in_progress' สำหรับเด็กแต่ละคน
+    const childDataWithAssessments = await Promise.all(
+      children.map(async (child) => {
+        const assessmentQuery = `
+          SELECT
+            a.assessment_id,
+            a.assessment_rank,
+            a.aspect,
+            a.assessment_details_id,
+            a.assessment_date,
+            ad.assessment_name,
+            ad.age_range,
+            ad.assessment_method,
+            ad.assessment_succession,
+            ad.training_method,
+            ad.training_device_name,
+            ad.training_device_image
+          FROM assessments a
+          JOIN assessment_details ad ON a.assessment_details_id = ad.assessment_details_id
+          WHERE a.child_id = ? AND a.status = 'in_progress'
+        `;
+        const [assessmentRows] = await pool.query(assessmentQuery, [
+          child.child_id,
+        ]);
+
+        return {
+          ...child,
+          assessments: assessmentRows,
         };
-      }
-
-      // เพิ่มข้อมูลการประเมินใน array assessments
-      if (row.assessment_id) {
-        acc[childId].assessments.push({
-          assessment_id: row.assessment_id,
-          status: row.assessment_status,
-          assessment_name: row.assessment_name,
-          age_range: row.age_range,
-          assessment_method: row.assessment_method,
-          assessment_succession: row.assessment_succession,
-          training_method: row.training_method,
-          training_device_name: row.training_device_name,
-          training_device_image: row.training_device_image,
-        });
-      }
-
-      return acc;
-    }, {});
-
-    // แปลงข้อมูลที่จัดกลุ่มเป็น array
-    const resultData = Object.values(groupedData);
+      })
+    );
 
     return res.status(200).json({
       message: "ดึงข้อมูลเด็กและการประเมินที่อยู่ในสถานะ 'in_progress' สำเร็จ",
-      data: resultData,
+      data: childDataWithAssessments,
     });
   } catch (error) {
     console.error("Error fetching child data and assessments:", error);
