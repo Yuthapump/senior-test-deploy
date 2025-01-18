@@ -4,6 +4,9 @@ const { pool } = require("../config/db");
 const multer = require("multer");
 const path = require("path");
 
+const { Expo } = require("expo-server-sdk");
+const expo = new Expo();
+
 // ตรวจสอบและสร้างโฟลเดอร์ uploads/childrenPic หากยังไม่มี
 const dir = "uploads/childrenPic";
 if (!fs.existsSync(dir)) {
@@ -144,6 +147,30 @@ const addChildForParent = async (req, res) => {
   }
 };
 
+// *** sendPushNotification ***
+const sendPushNotification = async (expoPushToken, message) => {
+  if (!Expo.isExpoPushToken(expoPushToken)) {
+    console.error(`Invalid Expo push token: ${expoPushToken}`);
+    return;
+  }
+
+  try {
+    const messages = [
+      {
+        to: expoPushToken,
+        sound: "default",
+        body: message,
+        data: { withSome: "data" },
+      },
+    ];
+
+    const ticket = await expo.sendPushNotificationsAsync(messages);
+    console.log("Push Notification Sent:", ticket);
+  } catch (error) {
+    console.error("Error sending push notification:", error);
+  }
+};
+
 // addChildForSupervisor function สำหรับ Supervisor
 const addChildForSupervisor = async (req, res) => {
   const { childName, nickname, birthday, gender, supervisor_id, rooms_id } =
@@ -201,7 +228,7 @@ const addChildForSupervisor = async (req, res) => {
         [parent_id, supervisor_id, child.child_id, "pending"]
       );
 
-      // แจ้งเตือนผู้ปกครอง
+      // แจ้งเตือนผู้ปกครองในระบบ
       await connection.execute(
         "INSERT INTO notifications (user_id, message, status) VALUES (?, ?, ?)",
         [
@@ -210,6 +237,23 @@ const addChildForSupervisor = async (req, res) => {
           "unread",
         ]
       );
+
+      // ดึง ExpoPushToken ของผู้ปกครอง
+      const [rows] = await connection.execute(
+        "SELECT expo_push_token FROM expo_tokens WHERE user_id = ?",
+        [parent_id]
+      );
+      const expoPushToken = rows[0]?.expo_push_token;
+
+      if (expoPushToken) {
+        // ส่ง Push Notification
+        await sendPushNotification(
+          expoPushToken,
+          `Supervisor with ID ${supervisor_id} is requesting access to child data for ${childName}.`
+        );
+      } else {
+        console.error(`Expo Push Token not found for user ID: ${parent_id}`);
+      }
 
       connection.release(); // คืน connection กลับสู่ pool
 

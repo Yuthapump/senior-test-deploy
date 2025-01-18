@@ -1,6 +1,5 @@
 // notificateController.js
 const { pool } = require("../config/db");
-const axios = require("axios");
 
 // ฟังก์ชันสำหรับการอนุมัติคำขอสิทธิ์
 const approveAccessRequest = async (req, res) => {
