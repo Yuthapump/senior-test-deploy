@@ -4,14 +4,16 @@ const router = express.Router();
 
 const {
   getChildData,
-  addChild,
+  addChildForParent,
+  addChildForSupervisor,
   upload,
 } = require("../controllers/childController");
 
-const { childapi } = require("../controllers/childController");
+// Route AddChildForParent
+router.post("/addChild-P", upload.single("childPic"), addChildForParent);
 
-// Route Addchild
-router.post("/addChild", upload.single("childPic"), addChild);
+// Route AddChildForSupervisor
+router.post("/addChild-S", upload.single("childPic"), addChildForSupervisor);
 
 // Route สำหรับการดึง
 router.get("/get-child-data", getChildData);

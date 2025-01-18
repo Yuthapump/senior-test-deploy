@@ -41,8 +41,8 @@ const upload = multer({
   },
 });
 
-// addChild function
-const addChild = async (req, res) => {
+// addChild function สำหรับ Parent
+const addChildForParent = async (req, res) => {
   console.log("Child Data: ", req.body);
 
   if (!req.file) {
@@ -51,14 +51,13 @@ const addChild = async (req, res) => {
     console.log("reqfile: ", req.file);
   }
 
-  const { childName, nickname, birthday, gender, parent_id, supervisor_id } =
-    req.body;
+  const { childName, nickname, birthday, gender, parent_id } = req.body;
   const childPic = req.file ? path.normalize(req.file.path) : null; // แปลงพาธไฟล์ให้เป็นรูปแบบสากล
 
   console.log("Req ChildPic: ", childPic);
   console.log("Uploaded file: ", req.file);
 
-  if (!childName || !birthday || !parent_id) {
+  if (!childName && !birthday) {
     // ลบไฟล์ถ้าไม่มีข้อมูลที่จำเป็น
     if (req.file) {
       fs.unlink(req.file.path, (err) => {
@@ -77,7 +76,7 @@ const addChild = async (req, res) => {
 
     // Check if child already exists
     const [existingChild] = await connection.execute(
-      "SELECT * FROM children WHERE childName = ? AND birthday = ? AND parent_id = ?",
+      "SELECT * FROM children WHERE LOWER(childName) = LOWER(?) AND birthday = ? AND user_id = ?", //case-insensitive (ไม่สนตัวพิมพ์เล็ก/ใหญ่)
       [childName, birthday, parent_id]
     );
 
@@ -96,7 +95,7 @@ const addChild = async (req, res) => {
 
     // Insert new child data
     const [result] = await connection.execute(
-      "INSERT INTO children (childName, nickname, birthday, gender, parent_id, childPic) VALUES (?, ?, ?, ?, ?, COALESCE(?, NULL))",
+      "INSERT INTO children (childName, nickname, birthday, gender, user_id, childPic) VALUES (?, ?, ?, ?, ?, COALESCE(?, NULL))",
       [childName, nickname, birthday, gender, parent_id, childPic]
     );
 
@@ -116,14 +115,6 @@ const addChild = async (req, res) => {
       "INSERT INTO parent_children (parent_id, child_id) VALUES (?, ?)",
       [parent_id, result.insertId]
     );
-
-    // If supervisor_id is provided, insert into supervisor_children
-    if (supervisor_id) {
-      await connection.execute(
-        "INSERT INTO supervisor_children (supervisor_id, child_id) VALUES (?, ?)",
-        [supervisor_id, result.insertId]
-      );
-    }
 
     connection.release(); // คืน connection กลับสู่ pool
 
@@ -153,6 +144,129 @@ const addChild = async (req, res) => {
   }
 };
 
+// addChildForSupervisor function สำหรับ Supervisor
+const addChildForSupervisor = async (req, res) => {
+  const { childName, nickname, birthday, gender, supervisor_id, rooms_id } =
+    req.body;
+  const childPic = req.file ? path.normalize(req.file.path) : null; // รับไฟล์ภาพถ้ามี
+
+  if (!childName || !birthday || !supervisor_id) {
+    return res.status(400).json({ message: "Required fields are missing" });
+  }
+
+  try {
+    const connection = await pool.getConnection(); // ใช้ pool เพื่อเชื่อมต่อ
+
+    // ตรวจสอบว่า Supervisor มีสิทธิ์ในการเพิ่มเด็กหรือไม่ (เช่น ตรวจสอบ role)
+    const [supervisor] = await connection.execute(
+      "SELECT role FROM users WHERE user_id = ?",
+      [supervisor_id]
+    );
+
+    if (supervisor.length === 0 || supervisor[0].role !== "supervisor") {
+      return res
+        .status(403)
+        .json({ message: "Only Supervisors can add children" });
+    }
+
+    // Check if the child already exists in the system
+    const [existingChild] = await connection.execute(
+      "SELECT * FROM children WHERE LOWER(childName) = LOWER(?) AND birthday = ?",
+      [childName, birthday]
+    );
+
+    if (existingChild.length > 0) {
+      // ถ้ามีเด็กในระบบแล้ว
+      const child = existingChild[0];
+      const parent_id = child.user_id;
+
+      // ตรวจสอบสถานะการขอสิทธิ์จากผู้ปกครอง
+      const [existingRequest] = await connection.execute(
+        "SELECT * FROM access_requests WHERE child_id = ? AND supervisor_id = ? AND parent_id = ?",
+        [child.child_id, supervisor_id, parent_id]
+      );
+
+      if (
+        existingRequest.length > 0 &&
+        existingRequest[0].status === "pending"
+      ) {
+        return res.status(200).json({
+          message: "Access request already sent, waiting for approval",
+        });
+      }
+
+      // ส่งคำขอสิทธิ์จากผู้ปกครอง
+      await connection.execute(
+        "INSERT INTO access_requests (parent_id, supervisor_id, child_id, status) VALUES (?, ?, ?, ?)",
+        [parent_id, supervisor_id, child.child_id, "pending"]
+      );
+
+      // แจ้งเตือนผู้ปกครอง
+      await connection.execute(
+        "INSERT INTO notifications (user_id, message, status) VALUES (?, ?, ?)",
+        [
+          parent_id,
+          `Supervisor with ID ${supervisor_id} is requesting access to child data for ${childName}.`,
+          "unread",
+        ]
+      );
+
+      connection.release(); // คืน connection กลับสู่ pool
+
+      return res.status(200).json({
+        message: `Access request sent to parent (ID: ${parent_id}) for child: ${childName}.`,
+      });
+    }
+
+    // ถ้าเด็กไม่มีในระบบ, เพิ่มเด็กใหม่ลงใน children
+    const [result] = await connection.execute(
+      "INSERT INTO children (childName, nickname, birthday, gender, supervisor_id, childPic) VALUES (?, ?, ?, ?, ?, COALESCE(?, NULL))",
+      [childName, nickname, birthday, gender, supervisor_id, childPic]
+    );
+
+    console.log("Child added by supervisor successfully: ", {
+      childName,
+      nickname,
+      birthday,
+      gender,
+      supervisor_id,
+      childPic,
+    });
+
+    // เพิ่มเด็กในตาราง supervisor_children
+    await connection.execute(
+      "INSERT INTO supervisor_children (supervisor_id, child_id) VALUES (?, ?)",
+      [supervisor_id, result.insertId]
+    );
+
+    // เพิ่มเด็กใน rooms_children
+    await connection.execute(
+      "INSERT INTO rooms_children (rooms_id, child_id) VALUES (?, ?)",
+      [rooms_id, result.insertId]
+    );
+
+    connection.release(); // คืน connection กลับสู่ pool
+
+    return res.status(201).json({
+      message: "Child added successfully by Supervisor",
+      childData: {
+        childName,
+        nickname,
+        birthday,
+        gender,
+        supervisor_id,
+        childPic,
+        insertId: result.insertId,
+      },
+    });
+  } catch (err) {
+    console.error("Error inserting child data:", err);
+    return res
+      .status(500)
+      .json({ message: "Error adding child by Supervisor" });
+  }
+};
+
 // function to get child data by parent_id or supervisor_id
 const getChildData = async (req, res) => {
   let connection;
@@ -176,28 +290,20 @@ const getChildData = async (req, res) => {
       query =
         "SELECT c.* FROM children c JOIN parent_children pc ON c.child_id = pc.child_id WHERE pc.parent_id = ?";
       params.push(parent_id);
-    }
 
-    // ถ้าระบุ supervisor_id
-    if (supervisor_id) {
-      query =
-        "SELECT c.* FROM children c JOIN supervisor_children sc ON c.child_id = sc.child_id WHERE sc.supervisor_id = ?";
-      params.push(supervisor_id);
-    }
+      const [children] = await connection.execute(query, params);
 
-    const [children] = await connection.execute(query, params);
+      if (children.length === 0) {
+        return res.status(200).json({
+          message: "ยังไม่มีข้อมูลเด็กในระบบ",
+          children: [],
+        });
+      }
 
-    if (children.length === 0) {
-      return res.status(200).json({
-        message: "ยังไม่มีข้อมูลเด็กในระบบ",
-        children: [],
-      });
-    }
-
-    // ดึงข้อมูลการประเมินที่อยู่ในสถานะ 'in_progress' สำหรับเด็กแต่ละคน
-    const childDataWithAssessments = await Promise.all(
-      children.map(async (child) => {
-        const assessmentQuery = `
+      // ดึงข้อมูลการประเมินที่อยู่ในสถานะ 'in_progress'
+      const childDataWithAssessmentsForParent = await Promise.all(
+        children.map(async (child) => {
+          const assessmentQuery = `
           SELECT
             a.assessment_id,
             a.assessment_rank,
@@ -215,21 +321,150 @@ const getChildData = async (req, res) => {
           JOIN assessment_details ad ON a.assessment_details_id = ad.assessment_details_id
           WHERE a.child_id = ? AND a.status = 'in_progress'
         `;
-        const [assessmentRows] = await connection.execute(assessmentQuery, [
-          child.child_id,
-        ]);
+          const [assessmentRows] = await connection.execute(assessmentQuery, [
+            child.child_id,
+          ]);
 
-        return {
-          ...child,
-          assessments: assessmentRows,
-        };
-      })
-    );
+          return {
+            ...child,
+            assessments: assessmentRows,
+          };
+        })
+      );
 
-    return res.status(200).json({
-      message: "ดึงข้อมูลเด็กและการประเมินที่อยู่ในสถานะ 'in_progress' สำเร็จ",
-      children: childDataWithAssessments,
-    });
+      return res.status(200).json({
+        message: "ดึงข้อมูลเด็ก 'in_progress' สำหรับผู้ปกครองสำเร็จ",
+        parent_id,
+        children: childDataWithAssessmentsForParent,
+      });
+    }
+
+    // ถ้าระบุ supervisor_id
+    if (supervisor_id) {
+      // ดึงข้อมูลเด็ก
+      query =
+        "SELECT c.* FROM children c JOIN supervisor_children sc ON c.child_id = sc.child_id WHERE sc.supervisor_id = ?";
+      params.push(supervisor_id);
+
+      const [children] = await connection.execute(query, params);
+
+      // ดึงข้อมูล rooms สำหรับ supervisor_id ที่ระบุ
+      const roomsQuery = `
+    SELECT 
+      rooms_id,
+      rooms_name,
+      rooms_pic,
+      created_at 
+    FROM rooms 
+    WHERE supervisor_id = ?
+  `;
+      const [rooms] = await connection.execute(roomsQuery, [supervisor_id]);
+
+      // กรณีที่ไม่มีข้อมูลเด็กและห้อง
+      if (children.length === 0 && rooms.length === 0) {
+        return res.status(200).json({
+          message: "ผู้ดูแลเพิ่งเริ่มต้นใช้งาน ไม่มีข้อมูลเด็กและห้องในระบบ",
+          children: [],
+          rooms: [],
+        });
+      }
+
+      if (children.length === 0) {
+        // ถ้าไม่มีเด็กในระบบสำหรับผู้ดูแล
+        const roomsWithChildren = await Promise.all(
+          rooms.map(async (room) => {
+            const roomChildrenQuery = `
+          SELECT c.child_id, c.childName, c.nickname, c.birthday, c.gender, c.childPic
+          FROM rooms_children rc
+          JOIN children c ON rc.child_id = c.child_id
+          WHERE rc.rooms_id = ?
+        `;
+            const [roomChildren] = await connection.execute(roomChildrenQuery, [
+              room.rooms_id,
+            ]);
+
+            return {
+              ...room,
+              children: roomChildren,
+            };
+          })
+        );
+
+        if (roomsWithChildren.length === 0) {
+          return res.status(200).json({
+            message: "ยังไม่มีข้อมูลห้องสำหรับผู้ดูแล",
+            children: [],
+            rooms: [],
+          });
+        }
+
+        return res.status(200).json({
+          message: "ยังไม่มีข้อมูลเด็กในระบบสำหรับผู้ดูแล",
+          children: [],
+          rooms: roomsWithChildren,
+        });
+      }
+
+      // ดึงข้อมูลการประเมินที่อยู่ในสถานะ 'in_progress' และ 'passed'
+      const childDataWithAssessmentsForSupervisor = await Promise.all(
+        children.map(async (child) => {
+          const assessmentQuery = `
+        SELECT
+          a.assessment_id,
+          a.assessment_rank,
+          a.aspect,
+          a.assessment_details_id,
+          a.assessment_date,
+          a.status,
+          ad.assessment_name,
+          ad.age_range,
+          ad.assessment_method,
+          ad.assessment_succession,
+          ad.training_method,
+          ad.training_device_name,
+          ad.training_device_image
+        FROM assessments a
+        JOIN assessment_details ad ON a.assessment_details_id = ad.assessment_details_id
+        WHERE a.child_id = ? AND (a.status = 'in_progress' OR a.status = 'passed') 
+      `;
+          const [assessmentRows] = await connection.execute(assessmentQuery, [
+            child.child_id,
+          ]);
+
+          return {
+            ...child,
+            assessments: assessmentRows,
+          };
+        })
+      );
+
+      // ดึงข้อมูลเด็กในแต่ละห้อง
+      const roomsWithChildren = await Promise.all(
+        rooms.map(async (room) => {
+          const roomChildrenQuery = `
+        SELECT c.child_id, c.childName, c.nickname, c.birthday, c.gender, c.childPic
+        FROM rooms_children rc
+        JOIN children c ON rc.child_id = c.child_id
+        WHERE rc.rooms_id = ?
+      `;
+          const [roomChildren] = await connection.execute(roomChildrenQuery, [
+            room.rooms_id,
+          ]);
+
+          return {
+            ...room,
+            children: roomChildren,
+          };
+        })
+      );
+
+      return res.status(200).json({
+        message: "ดึงข้อมูลเด็กสำหรับผู้ดูแลสำเร็จ",
+        supervisor_id,
+        children: childDataWithAssessmentsForSupervisor,
+        rooms: roomsWithChildren,
+      });
+    }
   } catch (error) {
     console.error("Error fetching child data and assessments:", error);
     return res.status(500).json({
@@ -240,4 +475,9 @@ const getChildData = async (req, res) => {
   }
 };
 
-module.exports = { addChild, getChildData, upload };
+module.exports = {
+  addChildForParent,
+  addChildForSupervisor,
+  getChildData,
+  upload,
+};

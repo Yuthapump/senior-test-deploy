@@ -8,8 +8,9 @@ require("dotenv").config();
 const authRoutes = require("./routes/authRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const childRoutes = require("./routes/childRoutes");
-
 const assessmentRoutes = require("./routes/assessmentRoutes");
+const roomRoutes = require("./routes/roomRoutes");
+const notificateRoutes = require("./routes/notificateRoutes");
 
 const app = express();
 const port = process.env.PORT; //
@@ -73,6 +74,12 @@ app.use("/api/childs", childRoutes);
 
 // Assessment Routes
 app.use("/api/assessments", assessmentRoutes);
+
+// Room Routes
+app.use("/api/rooms", roomRoutes);
+
+// Notificate Routes
+app.use("/api/notifications", notificateRoutes);
 
 // เริ่มเซิร์ฟเวอร์สำหรับทดสอบ
 app.listen(port, () => {
