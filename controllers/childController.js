@@ -224,22 +224,36 @@ const addChildForSupervisor = async (req, res) => {
 
       // ส่งคำขอสิทธิ์จากผู้ปกครอง
       await connection.execute(
-        "INSERT INTO access_requests (parent_id, supervisor_id, child_id, status) VALUES (?, ?, ?, ?)",
-        [parent_id, supervisor_id, child.child_id, "pending"]
+        "INSERT INTO access_requests (parent_id, supervisor_id, child_id, rooms_id, status) VALUES (?, ?, ?, ?, ?)",
+        [parent_id, supervisor_id, child.child_id, rooms_id, "pending"]
       );
+
+      // ดึง userName ของ Supervisor
+      const [supervisorRows] = await connection.execute(
+        "SELECT userName FROM users WHERE user_id = ?",
+        [supervisor_id]
+      );
+
+      if (supervisorRows.length === 0) {
+        return res.status(404).json({ message: "Supervisor not found" });
+      }
+
+      const supervisorName = supervisorRows[0].userName;
 
       // แจ้งเตือนผู้ปกครองในระบบ
       await connection.execute(
-        "INSERT INTO notifications (user_id, message, status) VALUES (?, ?, ?)",
+        "INSERT INTO notifications (user_id, message, supervisor_id, child_id, status) VALUES (?, ?, ?, ?, ?)",
         [
           parent_id,
-          `Supervisor with ID ${supervisor_id} is requesting access to child data for ${childName}.`,
+          `คุณ ${supervisorName} ขอเข้าถึงข้อมูลของ ${childName} เพื่อใช้ในการติดตามและประเมินพัฒนาการ`,
+          supervisor_id,
+          child.child_id,
           "unread",
         ]
       );
 
       /// ดึง ExpoPushToken ล่าสุดของผู้ปกครอง
-      const [rows] = await connection.execute(
+      const [tokenRows] = await connection.execute(
         `SELECT expo_push_token
    FROM expo_tokens
    WHERE user_id = ?
@@ -248,13 +262,13 @@ const addChildForSupervisor = async (req, res) => {
         [parent_id]
       );
 
-      const expoPushToken = rows[0]?.expo_push_token;
+      const expoPushToken = tokenRows[0]?.expo_push_token;
 
       if (expoPushToken) {
         // ส่ง Push Notification
         await sendPushNotification(
           expoPushToken,
-          `Supervisor with ID ${supervisor_id} is requesting access to child data for ${childName}.`
+          `คุณ ${supervisorName} ขอเข้าถึงข้อมูลของ ${childName} เพื่อใช้ในการติดตามและประเมินพัฒนาการ`
         );
       } else {
         console.error(`Expo Push Token not found for user ID: ${parent_id}`);
