@@ -58,7 +58,9 @@ const saveExpoPushToken = async (req, res) => {
     await connection.execute(
       `INSERT INTO expo_tokens (user_id, expo_push_token, updated_at)
    VALUES (?, ?, NOW())
-   ON DUPLICATE KEY UPDATE expo_push_token = VALUES(expo_push_token), updated_at = NOW()`,
+   ON DUPLICATE KEY UPDATE 
+     expo_push_token = VALUES(expo_push_token), 
+     updated_at = NOW()`,
       [user_id, expoPushToken]
     );
 
