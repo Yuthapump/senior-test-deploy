@@ -56,8 +56,10 @@ const saveExpoPushToken = async (req, res) => {
 
     // บันทึกหรืออัปเดต Token ในตาราง expo_tokens
     await connection.execute(
-      "INSERT INTO expo_tokens (user_id, expo_push_token) VALUES (?, ?) ON DUPLICATE KEY UPDATE expo_push_token = ?",
-      [user_id, expoPushToken, expoPushToken]
+      `INSERT INTO expo_tokens (user_id, expo_push_token, updated_at)
+   VALUES (?, ?, NOW())
+   ON DUPLICATE KEY UPDATE expo_push_token = VALUES(expo_push_token), updated_at = NOW()`,
+      [user_id, expoPushToken]
     );
 
     connection.release();

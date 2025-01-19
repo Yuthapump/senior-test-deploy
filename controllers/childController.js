@@ -238,11 +238,16 @@ const addChildForSupervisor = async (req, res) => {
         ]
       );
 
-      // ดึง ExpoPushToken ของผู้ปกครอง
+      /// ดึง ExpoPushToken ล่าสุดของผู้ปกครอง
       const [rows] = await connection.execute(
-        "SELECT expo_push_token FROM expo_tokens WHERE user_id = ?",
+        `SELECT expo_push_token
+   FROM expo_tokens
+   WHERE user_id = ?
+   ORDER BY updated_at DESC
+   LIMIT 1`,
         [parent_id]
       );
+
       const expoPushToken = rows[0]?.expo_push_token;
 
       if (expoPushToken) {
