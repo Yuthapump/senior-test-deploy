@@ -50,12 +50,12 @@ const addRooms = async (req, res) => {
       throw new Error("Missing required fields: rooms_name or supervisor_id");
     }
 
-    const rooms_pic = req.file ? path.normalize(req.file.path) : null;
+    const roomsPic = req.file ? path.normalize(req.file.path) : null;
 
     const connection = await pool.getConnection();
     const [result] = await connection.execute(
-      "INSERT INTO rooms (rooms_name, rooms_pic, supervisor_id) VALUES (?, COALESCE(?, NULL), ?)",
-      [rooms_name, rooms_pic, supervisor_id]
+      "INSERT INTO rooms (rooms_name, roomsPic, supervisor_id) VALUES (?, COALESCE(?, NULL), ?)",
+      [rooms_name, roomsPic, supervisor_id]
     );
 
     connection.release(); // คืน connection กลับสู่ pool
@@ -64,7 +64,7 @@ const addRooms = async (req, res) => {
       message: "Rooms added successfully",
       roomsData: {
         rooms_name,
-        rooms_pic,
+        roomsPic,
         supervisor_id,
         insertId: result.insertId,
       },
