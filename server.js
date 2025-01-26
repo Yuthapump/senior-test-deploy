@@ -1,10 +1,12 @@
-// server.js
 const express = require("express");
 const multer = require("multer");
 const cors = require("cors");
 const path = require("path");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const jwt = require("jsonwebtoken");
 require("dotenv").config();
-// const { addChild } = require("./controllers/childController");
+
 const authRoutes = require("./routes/authRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const childRoutes = require("./routes/childRoutes");
@@ -13,27 +15,36 @@ const roomRoutes = require("./routes/roomRoutes");
 const notificateRoutes = require("./routes/notificateRoutes");
 
 const app = express();
-const port = process.env.PORT; //
+const port = process.env.PORT;
 
-// ตั้งค่า multer สำหรับจัดการ multipart/form-data (การอัพโหลดไฟล์)
+// === Rate Limiting ===
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 นาที
+  max: 100, // จำกัด 100 requests ต่อ IP ต่อ 15 นาที
+  message: "Too many requests from this IP, please try again later.",
+});
+app.use(limiter);
+
+// === Middleware สำหรับเพิ่มความปลอดภัยด้วย Helmet ===
+app.use(helmet());
+
+// === ตั้งค่า Multer ===
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/"); // กำหนดโฟลเดอร์สำหรับเก็บไฟล์ที่อัพโหลด
+    cb(null, "uploads/"); // โฟลเดอร์สำหรับเก็บไฟล์ที่อัพโหลด
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(
-      null,
-      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
-    ); // ตั้งชื่อไฟล์ใหม่พร้อมนามสกุลเดิม
+    const sanitizedFilename = path.basename(file.originalname); // ป้องกัน Directory Traversal
+    cb(null, `${file.fieldname}-${uniqueSuffix}-${sanitizedFilename}`);
   },
 });
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 20 * 1024 * 1024 },
+  limits: { fileSize: 20 * 1024 * 1024 }, // จำกัดขนาดไฟล์ 20MB
   fileFilter: (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png/; // รองรับไฟล์ JPEG, JPG และ PNG
+    const filetypes = /jpeg|jpg|png/; // รองรับไฟล์ JPEG, JPG, และ PNG
     const mimetype = filetypes.test(file.mimetype);
     const extname = filetypes.test(
       path.extname(file.originalname).toLowerCase()
@@ -42,48 +53,71 @@ const upload = multer({
     if (mimetype && extname) {
       return cb(null, true);
     }
-    cb(new Error("กรุณาอัพโหลดไฟล์รูปภาพที่เป็นนามสกุล jpeg, jpg, หรือ png"));
+    cb(
+      new Error(
+        "Invalid file type. Please upload an image file with jpeg, jpg, or png extension."
+      )
+    );
   },
+}).single("file"); // รองรับอัปโหลดไฟล์เพียงไฟล์เดียวต่อครั้ง
+
+// === Route สำหรับการอัปโหลดไฟล์ ===
+app.post("/api/upload", (req, res) => {
+  upload(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      return res.status(400).json({ error: `Multer error: ${err.message}` });
+    } else if (err) {
+      return res.status(400).json({ error: `Upload error: ${err.message}` });
+    }
+    res.status(200).json({ message: "File uploaded successfully!" });
+  });
 });
 
-// Middleware สำหรับ CORS
+// === Middleware สำหรับตรวจสอบ Token หรือ Authorization ===
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({ error: "Access denied. No token provided." });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: "Invalid token." });
+    }
+    req.user = user; // เก็บข้อมูลผู้ใช้ที่ถอดรหัสได้ใน req.user
+    next();
+  });
+};
+
+// === Middleware สำหรับ CORS ===
 app.use(
   cors({
-    //origin: "*", // อนุญาตทุกโดเมน
-    origin: process.env.CORS_ORIGIN,
+    origin: [process.env.CORS_ORIGIN],
     methods: ["GET", "POST", "PUT"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// Middleware for parsing JSON
+// === Middleware สำหรับ JSON ===
 app.use(express.json());
 
 // Serve static files from 'uploads' folder
 app.use("/uploads", express.static("uploads"));
 
-// Set up Routes
+// === Routes ===
 app.use("/api/auth", authRoutes);
+app.use("/api/profiles", authenticateToken, profileRoutes); // ต้องตรวจสอบ Token
+app.use("/api/childs", authenticateToken, childRoutes);
+app.use("/api/assessments", authenticateToken, assessmentRoutes);
+app.use("/api/rooms", authenticateToken, roomRoutes);
+app.use("/api/notifications", authenticateToken, notificateRoutes);
 
-// Profile Routes
-app.use("/api/profiles", profileRoutes);
-
-// Child Routes
-app.use("/api/childs", childRoutes);
-
-// Assessment Routes
-app.use("/api/assessments", assessmentRoutes);
-
-// Room Routes
-app.use("/api/rooms", roomRoutes);
-
-// Notificate Routes
-app.use("/api/notifications", notificateRoutes);
-
-// เริ่มเซิร์ฟเวอร์สำหรับทดสอบ
+// === Server Start ===
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port} for Test Sir'Benz`);
-  console.log("waiting for your command Sir...");
+  console.log(`Server is running on: http://localhost:${port}`);
+  console.log("Ready for commands, Sir'Benz!");
 });
 
 module.exports = upload;

@@ -90,7 +90,7 @@ const login = async (req, res) => {
 
     // ดำเนินการค้นหาผู้ใช้
     const [results] = await connection.execute(
-      "SELECT * FROM users WHERE userName = ?",
+      "SELECT * FROM users WHERE LOWER(userName) = LOWER(?)",
       [userName]
     );
 
@@ -126,6 +126,11 @@ const login = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
+
+    // for logging
+    console.log("Login successful");
+    console.log("User:", user);
+    console.log("Token:", token);
 
     connection.release(); // คืน connection กลับไปที่ pool
 

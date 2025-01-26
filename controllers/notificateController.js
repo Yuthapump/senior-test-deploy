@@ -72,17 +72,28 @@ const approveAccessRequest = async (req, res) => {
       [supervisor_id, child_id]
     );
 
-    // ดึงข้อมูลผู้ดูแล (เช่น Expo Push Token) เพื่อส่งการแจ้งเตือน
-    const [parentData] = await connection.execute(
+    // //
+    // const [parentData] = await connection.execute(
+    //   "SELECT user_id FROM children WHERE child_id = ?",
+    //   [child_id]
+    // );
+    // const parent_id = parentData[0].parent_id;
+    // await connection.execute(
+    //   "DELETE FROM notifications WHERE user_id = ? AND child_id = ? AND supervisor_id = ?",
+    //   [parent_id, child_id, supervisor_id]
+    // );
+
+    // For Test
+    const [parenttestData] = await connection.execute(
       "SELECT expo_push_token FROM expo_tokens WHERE user_id = ?",
       [parent_id]
     );
 
-    if (!parentData.length) {
+    if (!parenttestData.length) {
       return res.status(404).json({ message: "Parent not found" });
     }
 
-    const parentPushToken = parentData[0].expo_push_token;
+    const parentPushToken = parenttestData[0].expo_push_token;
 
     if (parentPushToken) {
       // ส่ง push notification ไปยังผู้ดูแล
@@ -91,6 +102,20 @@ const approveAccessRequest = async (req, res) => {
         "การขอเข้าถึงข้อมูลของเด็กได้รับการอนุมัติแล้ว!"
       );
     }
+
+    // ดึงข้อมูลผู้ดูแล (เช่น Expo Push Token) เพื่อส่งการแจ้งเตือน
+    // const [supervisorData] = await connection.execute(
+    //   "SELECT expo_push_token FROM expo_tokens WHERE user_id = ?",
+    //   [supervisor_id]
+    // );
+    // const supervisorPushToken = parentData[0].expo_push_token;
+    // if (supervisorPushToken) {
+    //   // ส่ง push notification ไปยังผู้ดูแล
+    //   await sendPushNotification(
+    //     supervisorPushToken,
+    //     "การขอเข้าถึงข้อมูลของเด็กได้รับการอนุมัติแล้ว!"
+    //   );
+    // }
 
     connection.release();
 
