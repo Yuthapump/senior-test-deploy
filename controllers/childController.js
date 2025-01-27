@@ -54,13 +54,14 @@ const addChildForParent = async (req, res) => {
     console.log("reqfile: ", req.file);
   }
 
-  const { childName, nickname, birthday, gender, parent_id } = req.body;
+  const { firstName, lastName, nickName, birthday, gender, parent_id } =
+    req.body;
   const childPic = req.file ? path.normalize(req.file.path) : null; // แปลงพาธไฟล์ให้เป็นรูปแบบสากล
 
   console.log("Req ChildPic: ", childPic);
   console.log("Uploaded file: ", req.file);
 
-  if (!childName && !birthday) {
+  if (!firstName || !lastName || !birthday) {
     // ลบไฟล์ถ้าไม่มีข้อมูลที่จำเป็น
     if (req.file) {
       fs.unlink(req.file.path, (err) => {
@@ -79,8 +80,8 @@ const addChildForParent = async (req, res) => {
 
     // Check if child already exists
     const [existingChild] = await connection.execute(
-      "SELECT * FROM children WHERE LOWER(childName) = LOWER(?) AND birthday = ? AND user_id = ?", //case-insensitive (ไม่สนตัวพิมพ์เล็ก/ใหญ่)
-      [childName, birthday, parent_id]
+      "SELECT * FROM children WHERE LOWER(firstName) = LOWER(?) AND LOWER(lastName) = LOWER(?) AND birthday = ? AND user_id = ?", // case-insensitive (ไม่สนตัวพิมพ์เล็ก/ใหญ่)
+      [firstName, lastName, birthday, parent_id]
     );
 
     if (existingChild.length > 0) {
@@ -98,14 +99,15 @@ const addChildForParent = async (req, res) => {
 
     // Insert new child data
     const [result] = await connection.execute(
-      "INSERT INTO children (childName, nickname, birthday, gender, user_id, childPic) VALUES (?, ?, ?, ?, ?, COALESCE(?, NULL))",
-      [childName, nickname, birthday, gender, parent_id, childPic]
+      "INSERT INTO children (firstName, lastName, nickName, birthday, gender, user_id, childPic) VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, NULL))",
+      [firstName, lastName, nickName, birthday, gender, parent_id, childPic]
     );
 
     // Log child data
     console.log("Child Data inserted successfully: ", {
-      childName,
-      nickname,
+      firstName,
+      lastName,
+      nickName,
       birthday,
       gender,
       parent_id,
@@ -124,8 +126,9 @@ const addChildForParent = async (req, res) => {
     return res.status(201).json({
       message: "Child added successfully",
       childData: {
-        childName,
-        nickname,
+        firstName,
+        lastName,
+        nickName,
         birthday,
         gender,
         parent_id,
@@ -173,11 +176,18 @@ const sendPushNotification = async (expoPushToken, message) => {
 
 // addChildForSupervisor function สำหรับ Supervisor
 const addChildForSupervisor = async (req, res) => {
-  const { childName, nickname, birthday, gender, supervisor_id, rooms_id } =
-    req.body;
+  const {
+    firstName,
+    lastName,
+    nickName,
+    birthday,
+    gender,
+    supervisor_id,
+    rooms_id,
+  } = req.body;
   const childPic = req.file ? path.normalize(req.file.path) : null; // รับไฟล์ภาพถ้ามี
 
-  if (!childName || !birthday || !supervisor_id) {
+  if (!firstName || !lastName || !birthday || !supervisor_id) {
     return res.status(400).json({ message: "Required fields are missing" });
   }
 
@@ -198,8 +208,8 @@ const addChildForSupervisor = async (req, res) => {
 
     // Check if the child already exists in the system
     const [existingChild] = await connection.execute(
-      "SELECT * FROM children WHERE LOWER(childName) = LOWER(?) AND birthday = ?",
-      [childName, birthday]
+      "SELECT * FROM children WHERE LOWER(firstName) = LOWER(?) AND LOWER(lastName) = LOWER(?) AND birthday = ?",
+      [firstName, lastName, birthday]
     );
 
     if (existingChild.length > 0) {
@@ -245,7 +255,7 @@ const addChildForSupervisor = async (req, res) => {
         "INSERT INTO notifications (user_id, message, supervisor_id, child_id, status) VALUES (?, ?, ?, ?, ?)",
         [
           parent_id,
-          `คุณ ${supervisorName} ขอเข้าถึงข้อมูลของ ${childName} เพื่อใช้ในการติดตามและประเมินพัฒนาการ`,
+          `คุณ ${supervisorName} ขอเข้าถึงข้อมูลของ ${firstName} ${lastName} เพื่อใช้ในการติดตามและประเมินพัฒนาการ`,
           supervisor_id,
           child.child_id,
           "unread",
@@ -268,7 +278,7 @@ const addChildForSupervisor = async (req, res) => {
         // ส่ง Push Notification
         await sendPushNotification(
           expoPushToken,
-          `คุณ ${supervisorName} ขอเข้าถึงข้อมูลของ ${childName} เพื่อใช้ในการติดตามและประเมินพัฒนาการ`
+          `คุณ ${supervisorName} ขอเข้าถึงข้อมูลของ ${firstName} ${lastName} เพื่อใช้ในการติดตามและประเมินพัฒนาการ`
         );
       } else {
         console.error(`Expo Push Token not found for user ID: ${parent_id}`);
@@ -277,19 +287,20 @@ const addChildForSupervisor = async (req, res) => {
       connection.release(); // คืน connection กลับสู่ pool
 
       return res.status(200).json({
-        message: `Access request sent to parent (ID: ${parent_id}) for child: ${childName}.`,
+        message: `Access request sent to parent (ID: ${parent_id}) for child: ${firstName} ${lastName}.`,
       });
     }
 
     // ถ้าเด็กไม่มีในระบบ, เพิ่มเด็กใหม่ลงใน children
     const [result] = await connection.execute(
-      "INSERT INTO children (childName, nickname, birthday, gender, supervisor_id, childPic) VALUES (?, ?, ?, ?, ?, COALESCE(?, NULL))",
-      [childName, nickname, birthday, gender, supervisor_id, childPic]
+      "INSERT INTO children (firstName, lastName, nickName, birthday, gender, supervisor_id, childPic) VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, NULL))",
+      [firstName, lastName, nickName, birthday, gender, supervisor_id, childPic]
     );
 
     console.log("Child added by supervisor successfully: ", {
-      childName,
-      nickname,
+      firstName,
+      lastName,
+      nickName,
       birthday,
       gender,
       supervisor_id,
@@ -313,8 +324,9 @@ const addChildForSupervisor = async (req, res) => {
     return res.status(201).json({
       message: "Child added successfully by Supervisor",
       childData: {
-        childName,
-        nickname,
+        firstName,
+        lastName,
+        nickName,
         birthday,
         gender,
         supervisor_id,
