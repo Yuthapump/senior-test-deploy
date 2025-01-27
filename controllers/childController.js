@@ -44,6 +44,13 @@ const upload = multer({
   },
 });
 
+// ฟังก์ชันแปลงจากพุทธศักราช (B.E.) เป็นคริสต์ศักราช (A.D.)
+function convertBEtoAD(beDate) {
+  const [day, month, year] = beDate.split("-");
+  const adYear = parseInt(year) - 543; // แปลงเป็นปีคริสต์ศักราช
+  return `${adYear}-${month}-${day}`; // แปลงวันที่ในรูปแบบ YYYY-MM-DD
+}
+
 // addChild function สำหรับ Parent
 const addChildForParent = async (req, res) => {
   console.log("Child Data: ", req.body);
@@ -97,10 +104,24 @@ const addChildForParent = async (req, res) => {
       return res.status(409).json({ message: "Child already exists" });
     }
 
+    // แปลงวันที่จากพุทธศักราชเป็นคริสต์ศักราช
+    const adBirthday = convertBEtoAD(birthday); // ได้ผลลัพธ์เป็น 'YYYY-MM-DD'
+
+    // แปลงเป็นวันที่ในรูปแบบที่ MySQL รองรับ
+    const formattedBirthday = format(new Date(adBirthday), "yyyy-MM-dd"); // แปลงเป็น 'YYYY-MM-DD'
+
     // Insert new child data
-    const [result] = await connection.execute(
-      "INSERT INTO children (firstName, lastName, nickName, birthday, gender, user_id, childPic) VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, NULL))",
-      [firstName, lastName, nickName, birthday, gender, parent_id, childPic]
+    const [result] = await pool.execute(
+      "INSERT INTO children (firstName, lastName, nickName, birthday, gender, user_id, childPic) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [
+        firstName,
+        lastName,
+        nickName,
+        formattedBirthday,
+        gender,
+        user_id,
+        childPic,
+      ]
     );
 
     // Log child data
@@ -108,7 +129,7 @@ const addChildForParent = async (req, res) => {
       firstName,
       lastName,
       nickName,
-      birthday,
+      birthday: formattedBirthday,
       gender,
       parent_id,
       childPic,
@@ -129,7 +150,7 @@ const addChildForParent = async (req, res) => {
         firstName,
         lastName,
         nickName,
-        birthday,
+        birthday: formattedBirthday,
         gender,
         parent_id,
         childPic,
