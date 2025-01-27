@@ -216,6 +216,12 @@ const addChildForSupervisor = async (req, res) => {
   try {
     const connection = await pool.getConnection(); // ใช้ pool เพื่อเชื่อมต่อ
 
+    // แปลงวันที่จากพุทธศักราชเป็นคริสต์ศักราช
+    const adBirthday = convertBEtoAD(birthday); // ได้ผลลัพธ์เป็น 'YYYY-MM-DD'
+
+    // แปลงเป็นวันที่ในรูปแบบที่ MySQL รองรับ
+    const formattedBirthday = format(new Date(adBirthday), "yyyy-MM-dd"); // แปลงเป็น 'YYYY-MM-DD'
+
     // ตรวจสอบว่า Supervisor มีสิทธิ์ในการเพิ่มเด็กหรือไม่ (เช่น ตรวจสอบ role)
     const [supervisor] = await connection.execute(
       "SELECT role FROM users WHERE user_id = ?",
@@ -231,7 +237,7 @@ const addChildForSupervisor = async (req, res) => {
     // Check if the child already exists in the system
     const [existingChild] = await connection.execute(
       "SELECT * FROM children WHERE LOWER(firstName) = LOWER(?) AND LOWER(lastName) = LOWER(?) AND birthday = ?",
-      [firstName, lastName, birthday]
+      [firstName, lastName, formattedBirthday]
     );
 
     if (existingChild.length > 0) {
@@ -315,15 +321,23 @@ const addChildForSupervisor = async (req, res) => {
 
     // ถ้าเด็กไม่มีในระบบ, เพิ่มเด็กใหม่ลงใน children
     const [result] = await connection.execute(
-      "INSERT INTO children (firstName, lastName, nickName, birthday, gender, supervisor_id, childPic) VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, NULL))",
-      [firstName, lastName, nickName, birthday, gender, supervisor_id, childPic]
+      "INSERT INTO children (firstName, lastName, nickName, birthday, gender, user_id, childPic) VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, NULL))",
+      [
+        firstName,
+        lastName,
+        nickName,
+        formattedBirthday,
+        gender,
+        supervisor_id,
+        childPic,
+      ]
     );
 
     console.log("Child added by supervisor successfully: ", {
       firstName,
       lastName,
       nickName,
-      birthday,
+      birthday: formattedBirthday,
       gender,
       supervisor_id,
       childPic,
@@ -349,7 +363,7 @@ const addChildForSupervisor = async (req, res) => {
         firstName,
         lastName,
         nickName,
-        birthday,
+        birthday: formattedBirthday,
         gender,
         supervisor_id,
         childPic,
