@@ -120,7 +120,7 @@ const addChildForParent = async (req, res) => {
         nickName,
         formattedBirthday,
         gender,
-        user_id,
+        parent_id,
         childPic,
       ]
     );
