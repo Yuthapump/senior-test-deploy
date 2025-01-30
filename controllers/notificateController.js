@@ -103,20 +103,6 @@ const approveAccessRequest = async (req, res) => {
       );
     }
 
-    // ดึงข้อมูลผู้ดูแล (เช่น Expo Push Token) เพื่อส่งการแจ้งเตือน
-    // const [supervisorData] = await connection.execute(
-    //   "SELECT expo_push_token FROM expo_tokens WHERE user_id = ?",
-    //   [supervisor_id]
-    // );
-    // const supervisorPushToken = parentData[0].expo_push_token;
-    // if (supervisorPushToken) {
-    //   // ส่ง push notification ไปยังผู้ดูแล
-    //   await sendPushNotification(
-    //     supervisorPushToken,
-    //     "การขอเข้าถึงข้อมูลของเด็กได้รับการอนุมัติแล้ว!"
-    //   );
-    // }
-
     connection.release();
 
     return res.status(200).json({

@@ -263,8 +263,8 @@ const getChildDataOfRoom = async (req, res) => {
           room_name: room[0].rooms_name,
           room_pic: room[0].roomsPic,
           supervisor_id: supervisor_id,
-          children: [],
         },
+        children: [],
       });
     }
 
