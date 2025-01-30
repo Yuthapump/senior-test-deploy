@@ -88,4 +88,134 @@ const addRooms = async (req, res) => {
   }
 };
 
-module.exports = { addRooms, upload };
+const getRoomData = async (req, res) => {
+  let connection;
+  try {
+    const { supervisor_id } = req.query;
+
+    if (!supervisor_id) {
+      return res.status(400).json({ message: "supervisor_id is required" });
+    }
+
+    connection = await pool.getConnection();
+
+    // ดึงข้อมูลห้องทั้งหมดที่ supervisor ดูแล
+    const [rooms] = await connection.execute(
+      `SELECT rooms_id, rooms_name, roomsPic, supervisor_id 
+       FROM rooms 
+       WHERE supervisor_id = ?`,
+      [supervisor_id]
+    );
+
+    if (rooms.length === 0) {
+      return res.status(404).json({
+        message: "No rooms found for this supervisor",
+        rooms: [],
+      });
+    }
+
+    // ดึงข้อมูลเด็กในแต่ละห้อง
+    const roomsWithChildren = await Promise.all(
+      rooms.map(async (room) => {
+        const [children] = await connection.execute(
+          `SELECT c.child_id, c.firstName, c.lastName, c.nickName, c.birthday, c.gender, c.childPic 
+           FROM rooms_children rc 
+           JOIN children c ON rc.child_id = c.child_id 
+           WHERE rc.rooms_id = ?`,
+          [room.rooms_id]
+        );
+
+        return {
+          ...room,
+          children,
+        };
+      })
+    );
+
+    return res.status(200).json({
+      message: "Rooms data retrieved successfully",
+      rooms: roomsWithChildren,
+    });
+  } catch (error) {
+    console.error("Error fetching rooms data:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+const getAllData = async (req, res) => {
+  let connection;
+  try {
+    const { supervisor_id } = req.query;
+
+    if (!supervisor_id) {
+      return res.status(400).json({ message: "supervisor_id is required" });
+    }
+
+    connection = await pool.getConnection();
+
+    // ดึงข้อมูลห้องทั้งหมดที่ supervisor ดูแล
+    const [rooms] = await connection.execute(
+      `SELECT rooms_id, rooms_name, roomsPic, supervisor_id 
+       FROM rooms 
+       WHERE supervisor_id = ?`,
+      [supervisor_id]
+    );
+
+    if (rooms.length === 0) {
+      return res.status(404).json({
+        message: "No rooms found for this supervisor",
+        rooms: [],
+      });
+    }
+
+    // ดึงข้อมูลเด็กในแต่ละห้อง พร้อมดึงข้อมูลการประเมินของเด็กแต่ละคน
+    const roomsWithChildrenAndAssessments = await Promise.all(
+      rooms.map(async (room) => {
+        // ดึงข้อมูลเด็กในห้อง
+        const [children] = await connection.execute(
+          `SELECT c.child_id, c.firstName, c.lastName, c.nickName, c.birthday, c.gender, c.childPic 
+           FROM rooms_children rc 
+           JOIN children c ON rc.child_id = c.child_id 
+           WHERE rc.rooms_id = ?`,
+          [room.rooms_id]
+        );
+
+        // ดึงข้อมูลการประเมินของเด็กแต่ละคน
+        const childrenWithAssessments = await Promise.all(
+          children.map(async (child) => {
+            const [assessments] = await connection.execute(
+              `SELECT a.assessment_id, a.assessment_date, a.assessment_rank, a.aspect, a.status
+               FROM assessments a
+               WHERE a.child_id = ?`,
+              [child.child_id]
+            );
+
+            return {
+              ...child,
+              assessments,
+            };
+          })
+        );
+
+        return {
+          ...room,
+          children: childrenWithAssessments,
+        };
+      })
+    );
+
+    return res.status(200).json({
+      message: "All data retrieved successfully",
+      rooms: roomsWithChildrenAndAssessments,
+    });
+  } catch (error) {
+    console.error("Error fetching all data:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+module.exports = { addRooms, getRoomData, getAllData, upload };
