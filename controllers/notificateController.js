@@ -88,7 +88,7 @@ const approveAccessRequest = async (req, res) => {
       "SELECT expo_push_token FROM expo_tokens WHERE user_id = ?",
       [supervisor_id]
     );
-    supervisor;
+
     if (!supervisorSend.length) {
       return res.status(404).json({ message: "supervisor not found" });
     }
