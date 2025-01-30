@@ -107,20 +107,20 @@ app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 
 // === Routes ===
-// app.use("/api/auth", authRoutes);
-// app.use("/api/profiles", authenticateToken, profileRoutes); // ต้องตรวจสอบ Token
-// app.use("/api/childs", authenticateToken, childRoutes);
-// app.use("/api/assessments", authenticateToken, assessmentRoutes);
-// app.use("/api/rooms", authenticateToken, roomRoutes);
-// app.use("/api/notifications", authenticateToken, notificateRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/profiles", authenticateToken, profileRoutes); // ต้องตรวจสอบ Token
+app.use("/api/childs", authenticateToken, childRoutes);
+app.use("/api/assessments", authenticateToken, assessmentRoutes);
+app.use("/api/rooms", authenticateToken, roomRoutes);
+app.use("/api/notifications", authenticateToken, notificateRoutes);
 
 // === Routes ===
-app.use("/api/auth", authRoutes);
-app.use("/api/profiles", profileRoutes); // ต้องตรวจสอบ Token
-app.use("/api/childs", childRoutes);
-app.use("/api/assessments", assessmentRoutes);
-app.use("/api/rooms", roomRoutes);
-app.use("/api/notifications", notificateRoutes);
+// app.use("/api/auth", authRoutes);
+// app.use("/api/profiles", profileRoutes); // ต้องตรวจสอบ Token
+// app.use("/api/childs", childRoutes);
+// app.use("/api/assessments", assessmentRoutes);
+// app.use("/api/rooms", roomRoutes);
+// app.use("/api/notifications", notificateRoutes);
 
 // === Server Start ===
 app.listen(port, () => {

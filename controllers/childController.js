@@ -217,7 +217,12 @@ const addChildForSupervisor = async (req, res) => {
     const connection = await pool.getConnection(); // ใช้ pool เพื่อเชื่อมต่อ
 
     // แปลงวันที่จากพุทธศักราชเป็นคริสต์ศักราช
-    const adBirthday = convertBEtoAD(birthday); // ได้ผลลัพธ์เป็น 'YYYY-MM-DD'
+    const adBirthday = convertBEtoAD(birthday);
+    console.log("Converted Birthday to AD:", adBirthday);
+
+    if (!adBirthday || isNaN(new Date(adBirthday).getTime())) {
+      return res.status(400).json({ message: "Invalid birthday format" });
+    }
 
     // แปลงเป็นวันที่ในรูปแบบที่ MySQL รองรับ
     const formattedBirthday = format(new Date(adBirthday), "yyyy-MM-dd"); // แปลงเป็น 'YYYY-MM-DD'

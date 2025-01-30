@@ -6,6 +6,9 @@ const {
   addRooms,
   getRoomData,
   getAllData,
+  getChildDataOfRoom,
+  deleteRoom,
+  removeChildFromRoom,
   upload,
 } = require("../controllers/roomController");
 
@@ -15,5 +18,11 @@ router.post("/add-room", upload.single("roomsPic"), addRooms);
 router.get("/get-room-data", getRoomData);
 
 router.get("/get-all-data", getAllData);
+
+router.get("/get-child-data-of-room", getChildDataOfRoom);
+
+router.delete("/delete-room", deleteRoom);
+
+router.delete("/remove-child-from-room", removeChildFromRoom);
 
 module.exports = router;

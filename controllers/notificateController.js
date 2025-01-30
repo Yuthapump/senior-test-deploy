@@ -83,22 +83,22 @@ const approveAccessRequest = async (req, res) => {
     //   [parent_id, child_id, supervisor_id]
     // );
 
-    // For Test
-    const [parenttestData] = await connection.execute(
+    //
+    const [supervisorSend] = await connection.execute(
       "SELECT expo_push_token FROM expo_tokens WHERE user_id = ?",
-      [parent_id]
+      [supervisor_id]
     );
-
-    if (!parenttestData.length) {
-      return res.status(404).json({ message: "Parent not found" });
+    supervisor;
+    if (!supervisorSend.length) {
+      return res.status(404).json({ message: "supervisor not found" });
     }
 
-    const parentPushToken = parenttestData[0].expo_push_token;
+    const supervisorPushToken = supervisorSend[0].expo_push_token;
 
-    if (parentPushToken) {
+    if (supervisorPushToken) {
       // ส่ง push notification ไปยังผู้ดูแล
       await sendPushNotification(
-        parentPushToken,
+        supervisorPushToken,
         "การขอเข้าถึงข้อมูลของเด็กได้รับการอนุมัติแล้ว!"
       );
     }
