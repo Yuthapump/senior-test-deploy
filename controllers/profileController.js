@@ -2,73 +2,65 @@
 const fs = require("fs");
 const path = require("path");
 const multer = require("multer");
-
 const { pool } = require("../config/db");
 
-// ตรวจสอบและสร้างโฟลเดอร์ uploads/childrenPic หากยังไม่มี
+// ตรวจสอบและสร้างโฟลเดอร์ uploads/profilePic หากยังไม่มี
 const dir = "uploads/profilePic";
 if (!fs.existsSync(dir)) {
-  fs.mkdirSync(dir, { recursive: true }); // สร้างโฟลเดอร์พร้อมกับโฟลเดอร์ย่อยที่ขาดหายไป
+  fs.mkdirSync(dir, { recursive: true });
 }
 
-// ตั้งค่า multer สำหรับจัดการ multipart/form-data (การอัพโหลดไฟล์)
+// ตั้งค่า multer สำหรับอัปโหลดไฟล์
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, dir); // กำหนดโฟลเดอร์สำหรับเก็บไฟล์ที่อัพโหลด
+    cb(null, dir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(
       null,
       file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
-    ); // ตั้งชื่อไฟล์ใหม่พร้อมนามสกุลเดิม
+    );
   },
 });
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 20 * 1024 * 1024 },
+  limits: { fileSize: 20 * 1024 * 1024 }, // จำกัดขนาดไฟล์ 20MB
   fileFilter: (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png/; // รองรับไฟล์ JPEG, JPG และ PNG
+    const filetypes = /jpeg|jpg|png/;
     const mimetype = filetypes.test(file.mimetype);
     const extname = filetypes.test(
       path.extname(file.originalname).toLowerCase()
     );
-
     if (mimetype && extname) {
       return cb(null, true);
     }
-    cb(new Error("กรุณาอัพโหลดไฟล์รูปภาพที่เป็นนามสกุล jpeg, jpg, หรือ png"));
+    cb(new Error("กรุณาอัปโหลดไฟล์รูปภาพที่เป็นนามสกุล jpeg, jpg, หรือ png"));
   },
 });
 
-// Controller to handle profile picture upload
-const updateProfilePic = async (req, res) => {
-  const { user_id } = req.body;
-
+// ✅ ฟังก์ชันอัปเดตโปรไฟล์ทั้งหมด
+const updateUserProfile = async (req, res) => {
+  const { user_id, userName, email, phoneNumber } = req.body;
   const profilePic = req.file ? req.file.path : null;
 
-  if (!user_id || !profilePic) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Missing userId or profilePic" });
+  if (!user_id) {
+    return res.status(400).json({ success: false, message: "Missing user_id" });
   }
 
   try {
     const connection = await pool.getConnection();
 
-    // Get the old profile picture path from the database
+    // ดึงข้อมูลรูปโปรไฟล์เก่า
     const [oldPicRows] = await connection.execute(
       "SELECT profilePic FROM users WHERE user_id = ?",
       [user_id]
     );
 
-    // Check if there is an old profile picture
     if (oldPicRows.length > 0) {
       const oldPicPath = oldPicRows[0].profilePic;
-
-      if (oldPicPath) {
-        // Delete old profile picture from the filesystem
+      if (oldPicPath && profilePic) {
         try {
           if (fs.existsSync(path.resolve(oldPicPath))) {
             fs.unlinkSync(path.resolve(oldPicPath));
@@ -79,33 +71,36 @@ const updateProfilePic = async (req, res) => {
       }
     }
 
-    // Update database with new profile picture path
+    // อัปเดตข้อมูลผู้ใช้
     await connection.execute(
-      "UPDATE users SET profilePic = ? WHERE user_id = ?",
-      [profilePic, user_id]
+      "UPDATE users SET userName = ?, email = ?, phoneNumber = ?, profilePic = COALESCE(?, profilePic) WHERE user_id = ?",
+      [userName, email, phoneNumber, profilePic, user_id]
     );
-    connection.release();
 
-    res.status(200).json({ success: true, message: "Profile picture updated" });
+    connection.release();
+    res
+      .status(200)
+      .json({ success: true, message: "Profile updated successfully" });
   } catch (error) {
-    console.error("Server error:", error);
+    console.error("Error updating user profile:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-// Function to get profile picture
+// ✅ ฟังก์ชันดึงรูปโปรไฟล์
 const getProfilePic = async (req, res) => {
   try {
     const { userId } = req.query;
-
     if (!userId) {
       return res
         .status(400)
         .json({ success: false, message: "No userId provided" });
     }
 
-    const query = "SELECT profilePic FROM users WHERE user_id = ?";
-    const [rows] = await pool.query(query, [userId]);
+    const [rows] = await pool.query(
+      "SELECT profilePic FROM users WHERE user_id = ?",
+      [userId]
+    );
 
     if (rows.length === 0) {
       return res
@@ -113,16 +108,11 @@ const getProfilePic = async (req, res) => {
         .json({ success: false, message: "User not found" });
     }
 
-    const profilePicUrl = rows[0].profilePic;
-    res.json({ success: true, profilePic: profilePicUrl });
+    res.json({ success: true, profilePic: rows[0].profilePic });
   } catch (error) {
     console.error("Error fetching profile picture:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
-module.exports = {
-  updateProfilePic,
-  getProfilePic,
-  upload,
-};
+module.exports = { updateUserProfile, getProfilePic, upload };
