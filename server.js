@@ -30,6 +30,7 @@ const limiter = rateLimit({
   max: 100, // จำกัดการเรียก API 100 ครั้งต่อ 15 นาทีต่อ IP
   message: "Too many requests, please try again later.",
 });
+app.use(limiter);
 
 // === Middleware สำหรับเพิ่มความปลอดภัยด้วย Helmet ===
 app.use(helmet());
