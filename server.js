@@ -21,13 +21,15 @@ const {
 const app = express();
 const port = process.env.PORT;
 
-// === Rate Limiting ===
+// === ✅ บอกให้ Express เชื่อมต่อผ่าน Proxy ===
+app.set("trust proxy", 1);
+
+// === ✅ ตั้งค่า Rate Limit เพื่อป้องกันการโจมตี DDoS ====
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 นาที
-  max: 100, // จำกัด 100 requests ต่อ IP ต่อ 15 นาที
-  message: "Too many requests from this IP, please try again later.",
+  max: 100, // จำกัดการเรียก API 100 ครั้งต่อ 15 นาทีต่อ IP
+  message: "Too many requests, please try again later.",
 });
-app.use(limiter);
 
 // === Middleware สำหรับเพิ่มความปลอดภัยด้วย Helmet ===
 app.use(helmet());
