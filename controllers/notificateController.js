@@ -145,7 +145,7 @@ const getAllNotifications = async (req, res) => {
     // ดึงข้อมูลการแจ้งเตือนของ user_id ที่ระบุ
     const [notifications] = await connection.execute(
       "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 10",
-      [user_id] // ส่งค่า user_id ที่รับมาเป็น parameter
+      [user_id]
     );
 
     connection.release();
@@ -163,7 +163,7 @@ const sendAssessmentReminder = async () => {
   try {
     connection = await pool.getConnection();
 
-    // ดึงข้อมูลเด็กที่ไม่มีการอัปเดตการประเมินมาเกิน 2 สัปดาห์
+    // Logic to send assessment reminders per 2 weeks
     const [childrenToNotify] = await connection.execute(`
       SELECT 
         c.child_id,
@@ -178,7 +178,7 @@ const sendAssessmentReminder = async () => {
       JOIN users u ON a.user_id = u.user_id 
       JOIN expo_tokens et ON a.user_id = et.user_id 
       WHERE a.assessment_date <= NOW() - INTERVAL 1 DAY
-      GROUP BY c.child_id, a.user_id;
+      ORDER BY a.assessment_date DESC LIMIT 1; 
     `);
 
     if (childrenToNotify.length === 0) {
