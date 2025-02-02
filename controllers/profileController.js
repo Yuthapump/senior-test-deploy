@@ -40,7 +40,7 @@ const upload = multer({
   },
 });
 
-// ✅ ฟังก์ชันอัปเดตโปรไฟล์ทั้งหมด
+// ฟังก์ชันอัปเดตโปรไฟล์ทั้งหมด
 const updateUserProfile = async (req, res) => {
   const { user_id, userName, email, phoneNumber } = req.body;
   const profilePic = req.file ? req.file.path : null;
@@ -85,7 +85,7 @@ const updateUserProfile = async (req, res) => {
   }
 };
 
-// ✅ ฟังก์ชันดึงรูปโปรไฟล์
+// ฟังก์ชันดึงรูปโปรไฟล์
 const getProfilePic = async (req, res) => {
   try {
     const { userId } = req.query;

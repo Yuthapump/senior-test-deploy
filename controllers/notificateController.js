@@ -187,8 +187,15 @@ const sendAssessmentReminder = async () => {
     }
 
     for (const child of childrenToNotify) {
-      const message = `⚠️ ถึงเวลาอัปเดตการประเมินของ ${child.firstName} ${child.lastName} แล้ว!`;
+      const message = `⚠️ ถึงเวลาอัปเดตการประเมินพัฒนาการของ ${child.firstName} ${child.lastName} แล้ว!`;
 
+      // ✅ บันทึกแจ้งเตือนในฐานข้อมูล
+      await connection.execute(
+        "INSERT INTO notifications (user_id, message, supervisor_id, child_id, status) VALUES (?, ?, ?, ?, ?)",
+        [child.user_id, message, child.user_id, child.child_id, "unread"]
+      );
+
+      // ✅ ส่ง Push Notification
       if (child.expo_push_token) {
         await sendPushNotification(child.expo_push_token, message);
       }
