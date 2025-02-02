@@ -14,6 +14,10 @@ const assessmentRoutes = require("./routes/assessmentRoutes");
 const roomRoutes = require("./routes/roomRoutes");
 const notificateRoutes = require("./routes/notificateRoutes");
 
+const {
+  sendAssessmentReminder,
+} = require("./controllers/notificateController");
+
 const app = express();
 const port = process.env.PORT;
 
@@ -107,20 +111,20 @@ app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 
 // === Routes ===
-// app.use("/api/auth", authRoutes);
-// app.use("/api/profiles", authenticateToken, profileRoutes); // ต้องตรวจสอบ Token
-// app.use("/api/childs", authenticateToken, childRoutes);
-// app.use("/api/assessments", authenticateToken, assessmentRoutes);
-// app.use("/api/rooms", authenticateToken, roomRoutes);
-// app.use("/api/notifications", authenticateToken, notificateRoutes);
-
-// === Routes ===
 app.use("/api/auth", authRoutes);
-app.use("/api/profiles", profileRoutes); // ต้องตรวจสอบ Token
-app.use("/api/childs", childRoutes);
-app.use("/api/assessments", assessmentRoutes);
-app.use("/api/rooms", roomRoutes);
-app.use("/api/notifications", notificateRoutes);
+app.use("/api/profiles", authenticateToken, profileRoutes);
+app.use("/api/childs", authenticateToken, childRoutes);
+app.use("/api/assessments", authenticateToken, assessmentRoutes);
+app.use("/api/rooms", authenticateToken, roomRoutes);
+app.use("/api/notifications", authenticateToken, notificateRoutes);
+
+// === Send Warning Assessment per 2 weeks ===
+// sendAssessmentReminder();
+// setInterval(sendAssessmentReminder, 24 * 60 * 60 * 1000);
+
+// เรียกใช้งานฟังก์ชันแจ้งเตือนทุกๆ 1 นาที (ทดสอบ)
+sendAssessmentReminder();
+setInterval(sendAssessmentReminder, 60 * 1000); // ✅ ทำงานทุก 1 นาที
 
 // === Server Start ===
 app.listen(port, () => {

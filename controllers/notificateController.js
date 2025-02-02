@@ -72,18 +72,6 @@ const approveAccessRequest = async (req, res) => {
       [supervisor_id, child_id]
     );
 
-    // //
-    // const [parentData] = await connection.execute(
-    //   "SELECT user_id FROM children WHERE child_id = ?",
-    //   [child_id]
-    // );
-    // const parent_id = parentData[0].parent_id;
-    // await connection.execute(
-    //   "DELETE FROM notifications WHERE user_id = ? AND child_id = ? AND supervisor_id = ?",
-    //   [parent_id, child_id, supervisor_id]
-    // );
-
-    //
     const [supervisorSend] = await connection.execute(
       "SELECT expo_push_token FROM expo_tokens WHERE user_id = ?",
       [supervisor_id]
@@ -170,8 +158,55 @@ const getAllNotifications = async (req, res) => {
   }
 };
 
+const sendAssessmentReminder = async () => {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+
+    // ดึงข้อมูลเด็กที่ไม่มีการอัปเดตการประเมินมาเกิน 2 สัปดาห์
+    const [childrenToNotify] = await connection.execute(`
+      SELECT 
+        c.child_id,
+        c.firstName,
+        c.lastName,
+        a.assessment_date,
+        a.user_id, 
+        u.userName AS last_evaluator_name, 
+        et.expo_push_token
+      FROM children c
+      JOIN assessments a ON c.child_id = a.child_id
+      JOIN users u ON a.user_id = u.user_id 
+      JOIN expo_tokens et ON a.user_id = et.user_id 
+      WHERE a.assessment_date <= NOW() - INTERVAL 1 DAY
+      GROUP BY c.child_id, a.user_id;
+    `);
+
+    if (childrenToNotify.length === 0) {
+      console.log("No children need assessment reminders at this time.");
+      return;
+    }
+
+    for (const child of childrenToNotify) {
+      const message = `⚠️ ถึงเวลาอัปเดตการประเมินของ ${child.firstName} ${child.lastName} แล้ว!`;
+
+      if (child.expo_push_token) {
+        await sendPushNotification(child.expo_push_token, message);
+      }
+
+      console.log(
+        `✅ Reminder sent for child ID ${child.child_id} to User ID ${child.user_id}`
+      );
+    }
+  } catch (error) {
+    console.error("❌ Error sending assessment reminders:", error);
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
 module.exports = {
   approveAccessRequest,
   getAllNotifications,
   saveExpoPushToken,
+  sendAssessmentReminder,
 };
