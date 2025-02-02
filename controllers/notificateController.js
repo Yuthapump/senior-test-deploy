@@ -177,7 +177,7 @@ const sendAssessmentReminder = async () => {
       JOIN assessments a ON c.child_id = a.child_id
       JOIN users u ON a.user_id = u.user_id 
       JOIN expo_tokens et ON a.user_id = et.user_id 
-      WHERE a.assessment_date <= NOW() - INTERVAL 1 HOUR
+      WHERE a.assessment_date <= NOW() - INTERVAL 14 DAY
       ORDER BY a.assessment_date DESC LIMIT 1; 
     `);
 

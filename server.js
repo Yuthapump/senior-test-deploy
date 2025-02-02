@@ -119,12 +119,8 @@ app.use("/api/rooms", authenticateToken, roomRoutes);
 app.use("/api/notifications", authenticateToken, notificateRoutes);
 
 // === Send Warning Assessment per 2 weeks ===
-// sendAssessmentReminder();
-// setInterval(sendAssessmentReminder, 24 * 60 * 60 * 1000);
-
-// เรียกใช้งานฟังก์ชันแจ้งเตือนทุกๆ 1 นาที (ทดสอบ)
-sendAssessmentReminder(); // ✅ เรียกใช้ครั้งแรกเมื่อเซิร์ฟเวอร์เริ่มทำงาน
-setInterval(sendAssessmentReminder, 5 * 60 * 1000); // ✅ ทำงานทุก 5 นาที (300,000 มิลลิวินาที)
+sendAssessmentReminder();
+setInterval(sendAssessmentReminder, 24 * 60 * 60 * 1000);
 
 // === Server Start ===
 app.listen(port, () => {
