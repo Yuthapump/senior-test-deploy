@@ -52,29 +52,27 @@ const updateUserProfile = async (req, res) => {
   try {
     const connection = await pool.getConnection();
 
-    // ดึงข้อมูลรูปโปรไฟล์เก่า
-    const [oldPicRows] = await connection.execute(
-      "SELECT profilePic FROM users WHERE user_id = ?",
-      [user_id]
-    );
-
-    if (oldPicRows.length > 0) {
-      const oldPicPath = oldPicRows[0].profilePic;
-      if (oldPicPath && profilePic) {
-        try {
-          if (fs.existsSync(path.resolve(oldPicPath))) {
-            fs.unlinkSync(path.resolve(oldPicPath));
-          }
-        } catch (err) {
-          console.error("Error deleting old profile picture:", err);
-        }
-      }
-    }
+    // ตรวจสอบค่า ถ้า `undefined` ให้ใช้ `null`
+    const updatedUserName = userName !== undefined ? userName : null;
+    const updatedEmail = email !== undefined ? email : null;
+    const updatedPhoneNumber = phoneNumber !== undefined ? phoneNumber : null;
+    const updatedProfilePic = profilePic !== undefined ? profilePic : null;
 
     // อัปเดตข้อมูลผู้ใช้
     await connection.execute(
-      "UPDATE users SET userName = ?, email = ?, phoneNumber = ?, profilePic = COALESCE(?, profilePic) WHERE user_id = ?",
-      [userName, email, phoneNumber, profilePic, user_id]
+      `UPDATE users 
+       SET userName = COALESCE(?, userName), 
+           email = COALESCE(?, email), 
+           phoneNumber = COALESCE(?, phoneNumber), 
+           profilePic = COALESCE(?, profilePic) 
+       WHERE user_id = ?`,
+      [
+        updatedUserName,
+        updatedEmail,
+        updatedPhoneNumber,
+        updatedProfilePic,
+        user_id,
+      ]
     );
 
     connection.release();
