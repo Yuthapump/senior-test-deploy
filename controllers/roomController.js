@@ -55,8 +55,8 @@ const addRooms = async (req, res) => {
 
     const connection = await pool.getConnection();
     const [result] = await connection.execute(
-      "INSERT INTO rooms (rooms_name, roomsPic, supervisor_id) VALUES (?, COALESCE(?, NULL), ?)",
-      [rooms_name, roomsPic, supervisor_id]
+      "INSERT INTO rooms (rooms_name, roomsPic, supervisor_id, colors) VALUES (?, COALESCE(?, NULL), ?, ?)",
+      [rooms_name, roomsPic, supervisor_id, colors]
     );
 
     connection.release(); // คืน connection กลับสู่ pool
@@ -67,6 +67,7 @@ const addRooms = async (req, res) => {
         rooms_name,
         roomsPic,
         supervisor_id,
+        colors,
         insertId: result.insertId,
       },
     });
