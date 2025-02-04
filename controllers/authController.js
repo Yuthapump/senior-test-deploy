@@ -203,8 +203,8 @@ const forgetPassword = async (req, res) => {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Reset Your Password",
-      text: `Hello ${user.userName},\n\nYou requested to reset your password. Click the link below:\n${resetLink}\n\nThis link is valid for 1 hour.`,
+      subject: "Reset Password",
+      text: `สวัสดี คุณ ${user.userName},\n\nคุณได้ส่งคำขอเพื่อเปลี่ยนรหัสผ่าน \nคลิกลิ้งเพื่อทำการเปลี่ยนรหัสผ่านของคุณ:\n${resetLink}\n\nลิ้งนี้จะหมดอายุภายใน 1 ชั่วโมง`,
     };
 
     await transporter.sendMail(mailOptions);
