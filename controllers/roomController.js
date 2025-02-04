@@ -102,7 +102,7 @@ const getRoomData = async (req, res) => {
 
     // ดึงข้อมูลห้องทั้งหมดที่ supervisor ดูแล
     const [rooms] = await connection.execute(
-      `SELECT rooms_id, rooms_name, roomsPic, supervisor_id 
+      `SELECT rooms_id, rooms_name, roomsPic, supervisor_id, colors 
        FROM rooms 
        WHERE supervisor_id = ?`,
       [supervisor_id]
@@ -158,7 +158,7 @@ const getAllData = async (req, res) => {
 
     // ดึงข้อมูลห้องทั้งหมดที่ supervisor ดูแล
     const [rooms] = await connection.execute(
-      `SELECT rooms_id, rooms_name, roomsPic, supervisor_id 
+      `SELECT rooms_id, rooms_name, roomsPic, supervisor_id, colors
        FROM rooms 
        WHERE supervisor_id = ?`,
       [supervisor_id]
@@ -234,7 +234,7 @@ const getChildDataOfRoom = async (req, res) => {
 
     // ตรวจสอบว่าห้องนี้ถูกดูแลโดย supervisor_id ที่ระบุหรือไม่
     const [room] = await connection.execute(
-      `SELECT rooms_id, rooms_name, roomsPic, supervisor_id 
+      `SELECT rooms_id, rooms_name, roomsPic, supervisor_id , colors
        FROM rooms 
        WHERE rooms_id = ? AND supervisor_id = ?`,
       [rooms_id, supervisor_id]
@@ -264,6 +264,7 @@ const getChildDataOfRoom = async (req, res) => {
           room_name: room[0].rooms_name,
           room_pic: room[0].roomsPic,
           supervisor_id: supervisor_id,
+          colors: room[0].colors,
           children: [],
         },
       });
@@ -276,6 +277,7 @@ const getChildDataOfRoom = async (req, res) => {
         room_name: room[0].rooms_name,
         room_pic: room[0].roomsPic,
         supervisor_id: supervisor_id,
+        colors: room[0].colors,
       },
       children: children,
     });
