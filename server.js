@@ -127,7 +127,7 @@ setInterval(sendAssessmentReminder, 24 * 60 * 60 * 1000);
 
 // === Server Start ===
 app.listen(port, () => {
-  console.log(`Server is running on: http://localhost:${port}`);
+  console.log(`Server is running on: http://localhost:${port}`); // For localhost
   console.log("Ready for commands, Sir'Benz!");
 });
 

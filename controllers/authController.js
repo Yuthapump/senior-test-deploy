@@ -150,4 +150,119 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { register, login };
+//  Forget Password
+const forgetPassword = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ success: false, message: "Missing email" });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+
+    // ตรวจสอบว่าอีเมลมีอยู่ในระบบหรือไม่
+    const [users] = await connection.execute(
+      "SELECT user_id, userName FROM users WHERE email = ?",
+      [email]
+    );
+
+    if (users.length === 0) {
+      connection.release();
+      return res
+        .status(404)
+        .json({ success: false, message: "Email not found" });
+    }
+
+    const user = users[0];
+
+    // สร้างโทเค็นสำหรับรีเซ็ตรหัสผ่าน
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetTokenExpire = new Date(Date.now() + 60 * 60 * 1000); // ✅ หมดอายุใน 1 ชั่วโมง
+
+    // บันทึก Token ลงในฐานข้อมูล
+    await connection.execute(
+      "UPDATE users SET reset_token = ?, reset_token_expire = ? WHERE user_id = ?",
+      [resetToken, resetTokenExpire, user.user_id]
+    );
+
+    connection.release();
+
+    // ส่งอีเมลรีเซ็ตรหัสผ่าน
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const resetLink = `https://senior-test-deploy-production-1362.up.railway.app/reset-password?token=${resetToken}`;
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Reset Your Password",
+      text: `Hello ${user.userName},\n\nYou requested to reset your password. Click the link below:\n${resetLink}\n\nThis link is valid for 1 hour.`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({
+      success: true,
+      message: "Reset password email sent successfully",
+    });
+  } catch (error) {
+    console.error("Error in forgot password:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ฟังก์ชัน Reset Password
+const resetPassword = async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Missing token or new password" });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+
+    // ✅ ตรวจสอบว่า Token ยังไม่หมดอายุ
+    const [users] = await connection.execute(
+      "SELECT user_id FROM users WHERE reset_token = ? AND reset_token_expire > NOW()",
+      [token]
+    );
+
+    if (users.length === 0) {
+      connection.release();
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid or expired token" });
+    }
+
+    const user = users[0];
+
+    // ✅ เข้ารหัสรหัสผ่านใหม่
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // ✅ อัปเดตรหัสผ่านใหม่ และล้าง Token
+    await connection.execute(
+      "UPDATE users SET password = ?, reset_token = NULL, reset_token_expire = NULL WHERE user_id = ?",
+      [hashedPassword, user.user_id]
+    );
+
+    connection.release();
+
+    res
+      .status(200)
+      .json({ success: true, message: "Password reset successfully" });
+  } catch (error) {
+    console.error("Error in reset password:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+module.exports = { register, login, forgetPassword, resetPassword };
