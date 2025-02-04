@@ -105,7 +105,7 @@ const getRoomData = async (req, res) => {
       `
       SELECT 
         r.rooms_id, r.rooms_name, r.roomsPic, r.supervisor_id, r.colors, 
-        COALESCE(child_count, 0) AS child_count
+        COALESCE(rc.child_count, 0) AS child_count 
       FROM rooms r
       LEFT JOIN (
         SELECT rooms_id, COUNT(child_id) AS child_count 
@@ -152,7 +152,7 @@ const getAllData = async (req, res) => {
       `
       SELECT 
         r.rooms_id, r.rooms_name, r.roomsPic, r.supervisor_id, r.colors, 
-        COALESCE(child_count, 0) AS child_count
+        COALESCE(rc.child_count, 0) AS child_count 
       FROM rooms r
       LEFT JOIN (
         SELECT rooms_id, COUNT(child_id) AS child_count 
@@ -201,7 +201,7 @@ const getChildDataOfRoom = async (req, res) => {
       `
       SELECT 
         r.rooms_id, r.rooms_name, r.roomsPic, r.supervisor_id, r.colors,
-        COALESCE(child_count, 0) AS child_count
+        COALESCE(rc.child_count, 0) AS child_count
       FROM rooms r
       LEFT JOIN (
         SELECT rooms_id, COUNT(child_id) AS child_count 
