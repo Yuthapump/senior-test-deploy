@@ -43,7 +43,7 @@ const upload = multer({
 
 const addRooms = async (req, res) => {
   try {
-    const { rooms_name, supervisor_id } = req.body;
+    const { rooms_name, supervisor_id, colors } = req.body;
     console.log("RoomData Data: ", req.body);
 
     // ตรวจสอบข้อมูลที่จำเป็น
