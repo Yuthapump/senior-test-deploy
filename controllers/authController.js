@@ -199,7 +199,7 @@ const forgetPassword = async (req, res) => {
       },
     });
 
-    const resetLink = `https://senior-test-deploy-production-1362.up.railway.app/reset-password?token=${resetToken}`;
+    const resetLink = `https://senior-test-deploy-production-1362.up.railway.app/api/auth/reset-password?token=${resetToken}`;
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
