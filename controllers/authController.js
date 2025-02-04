@@ -1,7 +1,9 @@
 // authController.js
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { pool } = require("../config/db"); // เปลี่ยนเป็น pool
+const { pool } = require("../config/db");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
 
 // register function
 const register = async (req, res) => {
