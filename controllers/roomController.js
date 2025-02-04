@@ -100,11 +100,20 @@ const getRoomData = async (req, res) => {
 
     connection = await pool.getConnection();
 
-    // ดึงข้อมูลห้องทั้งหมดที่ supervisor ดูแล
+    // ✅ ดึงข้อมูลห้องพร้อมนับจำนวนเด็ก
     const [rooms] = await connection.execute(
-      `SELECT rooms_id, rooms_name, roomsPic, supervisor_id, colors 
-       FROM rooms 
-       WHERE supervisor_id = ?`,
+      `
+      SELECT 
+        r.rooms_id, r.rooms_name, r.roomsPic, r.supervisor_id, r.colors, 
+        COALESCE(child_count, 0) AS child_count
+      FROM rooms r
+      LEFT JOIN (
+        SELECT rooms_id, COUNT(child_id) AS child_count 
+        FROM rooms_children 
+        GROUP BY rooms_id
+      ) rc ON r.rooms_id = rc.rooms_id
+      WHERE r.supervisor_id = ?;
+    `,
       [supervisor_id]
     );
 
@@ -115,27 +124,9 @@ const getRoomData = async (req, res) => {
       });
     }
 
-    // ดึงข้อมูลเด็กในแต่ละห้อง
-    const roomsWithChildren = await Promise.all(
-      rooms.map(async (room) => {
-        const [children] = await connection.execute(
-          `SELECT c.child_id, c.firstName, c.lastName, c.nickName, c.birthday, c.gender, c.childPic 
-           FROM rooms_children rc 
-           JOIN children c ON rc.child_id = c.child_id 
-           WHERE rc.rooms_id = ?`,
-          [room.rooms_id]
-        );
-
-        return {
-          ...room,
-          children,
-        };
-      })
-    );
-
     return res.status(200).json({
       message: "Rooms data retrieved successfully",
-      rooms: roomsWithChildren,
+      rooms,
     });
   } catch (error) {
     console.error("Error fetching rooms data:", error);
@@ -156,11 +147,20 @@ const getAllData = async (req, res) => {
 
     connection = await pool.getConnection();
 
-    // ดึงข้อมูลห้องทั้งหมดที่ supervisor ดูแล
+    // ✅ ดึงข้อมูลห้องพร้อมจำนวนเด็ก
     const [rooms] = await connection.execute(
-      `SELECT rooms_id, rooms_name, roomsPic, supervisor_id, colors
-       FROM rooms 
-       WHERE supervisor_id = ?`,
+      `
+      SELECT 
+        r.rooms_id, r.rooms_name, r.roomsPic, r.supervisor_id, r.colors, 
+        COALESCE(child_count, 0) AS child_count
+      FROM rooms r
+      LEFT JOIN (
+        SELECT rooms_id, COUNT(child_id) AS child_count 
+        FROM rooms_children 
+        GROUP BY rooms_id
+      ) rc ON r.rooms_id = rc.rooms_id
+      WHERE r.supervisor_id = ?;
+    `,
       [supervisor_id]
     );
 
@@ -171,45 +171,9 @@ const getAllData = async (req, res) => {
       });
     }
 
-    // ดึงข้อมูลเด็กในแต่ละห้อง พร้อมดึงข้อมูลการประเมินของเด็กแต่ละคน
-    const roomsWithChildrenAndAssessments = await Promise.all(
-      rooms.map(async (room) => {
-        // ดึงข้อมูลเด็กในห้อง
-        const [children] = await connection.execute(
-          `SELECT c.child_id, c.firstName, c.lastName, c.nickName, c.birthday, c.gender, c.childPic 
-           FROM rooms_children rc 
-           JOIN children c ON rc.child_id = c.child_id 
-           WHERE rc.rooms_id = ?`,
-          [room.rooms_id]
-        );
-
-        // ดึงข้อมูลการประเมินของเด็กแต่ละคน
-        const childrenWithAssessments = await Promise.all(
-          children.map(async (child) => {
-            const [assessments] = await connection.execute(
-              `SELECT a.assessment_id, a.assessment_date, a.assessment_rank, a.aspect, a.status
-               FROM assessments a
-               WHERE a.child_id = ?`,
-              [child.child_id]
-            );
-
-            return {
-              ...child,
-              assessments,
-            };
-          })
-        );
-
-        return {
-          ...room,
-          children: childrenWithAssessments,
-        };
-      })
-    );
-
     return res.status(200).json({
       message: "All data retrieved successfully",
-      rooms: roomsWithChildrenAndAssessments,
+      rooms,
     });
   } catch (error) {
     console.error("Error fetching all data:", error);
@@ -232,11 +196,20 @@ const getChildDataOfRoom = async (req, res) => {
 
     connection = await pool.getConnection();
 
-    // ตรวจสอบว่าห้องนี้ถูกดูแลโดย supervisor_id ที่ระบุหรือไม่
+    // ✅ ดึงข้อมูลห้อง พร้อม `child_count`
     const [room] = await connection.execute(
-      `SELECT rooms_id, rooms_name, roomsPic, supervisor_id , colors
-       FROM rooms 
-       WHERE rooms_id = ? AND supervisor_id = ?`,
+      `
+      SELECT 
+        r.rooms_id, r.rooms_name, r.roomsPic, r.supervisor_id, r.colors,
+        COALESCE(child_count, 0) AS child_count
+      FROM rooms r
+      LEFT JOIN (
+        SELECT rooms_id, COUNT(child_id) AS child_count 
+        FROM rooms_children 
+        GROUP BY rooms_id
+      ) rc ON r.rooms_id = rc.rooms_id
+      WHERE r.rooms_id = ? AND r.supervisor_id = ?;
+    `,
       [rooms_id, supervisor_id]
     );
 
@@ -246,40 +219,16 @@ const getChildDataOfRoom = async (req, res) => {
         .json({ message: "Room not found or not managed by this supervisor" });
     }
 
-    // ดึงข้อมูลเด็กทั้งหมดในห้อง
-    const [children] = await connection.execute(
-      `SELECT c.child_id, c.firstName, c.lastName, c.nickName, c.birthday, c.gender, c.childPic 
-       FROM rooms_children rc 
-       JOIN children c ON rc.child_id = c.child_id 
-       WHERE rc.rooms_id = ?`,
-      [rooms_id]
-    );
-
-    // ตรวจสอบว่าห้องนี้มีเด็กหรือไม่
-    if (children.length === 0) {
-      return res.status(200).json({
-        message: "ยังไม่มีเด็กในห้องนี้",
-        roomData: {
-          room_id: rooms_id,
-          room_name: room[0].rooms_name,
-          room_pic: room[0].roomsPic,
-          supervisor_id: supervisor_id,
-          colors: room[0].colors,
-          children: [],
-        },
-      });
-    }
-
     return res.status(200).json({
       message: "Child data retrieved successfully",
       roomData: {
-        room_id: rooms_id,
+        room_id: room[0].rooms_id,
         room_name: room[0].rooms_name,
         room_pic: room[0].roomsPic,
         supervisor_id: supervisor_id,
         colors: room[0].colors,
+        child_count: room[0].child_count,
       },
-      children: children,
     });
   } catch (error) {
     console.error("Error fetching child data of room:", error);
