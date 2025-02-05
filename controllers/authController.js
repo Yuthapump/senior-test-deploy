@@ -202,7 +202,7 @@ const forgetPassword = async (req, res) => {
     const resetLink = Linking.createURL(`/resetPassword?token=${resetToken}`); // For Test
     // const resetLink = `DekDekApp://reset-password?token=${resetToken}`; // สำหรับ Mobile App
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: "DekDek App",
       to: email,
       subject: "Reset Password",
       text: `สวัสดีค่ะ คุณ ${user.userName},\n\nคุณได้กดส่งคำขอเพื่อเปลี่ยนรหัสผ่านใหม่เมื่อสักครู่นี้ \nกรุณาคลิกที่ลิ้งด้านล่างเพื่อเปลี่ยนรหัสผ่านของคุณ:\n${resetLink}\n\nลิ้งนี้จะหมดอายุภายใน 1 ชั่วโมง\n\nหากคุณไม่ได้กดขอตั้งค่ารหัสผ่านใหม่ด้วยตนเอง หรือต้องการความช่วยเหลือเพิ่มเติม กรุณาติดต่อศูนย์บริการลูกค้าของเรา\n\nขอบคุณค่ะ\nDekDek Team`,
