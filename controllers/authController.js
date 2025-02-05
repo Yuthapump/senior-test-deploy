@@ -199,7 +199,7 @@ const forgetPassword = async (req, res) => {
       },
     });
 
-    const resetLink = Linking.createURL(`/resetPassword?token=${resetToken}`); // For Test
+    const resetLink = `${process.env.EXPO_DEV_URL}/--/resetPassword?token=${resetToken}`; // For Test
     // const resetLink = `DekDekApp://reset-password?token=${resetToken}`; // สำหรับ Mobile App
     const mailOptions = {
       from: "DekDek App",
