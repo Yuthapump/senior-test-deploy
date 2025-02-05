@@ -180,7 +180,7 @@ const forgetPassword = async (req, res) => {
 
     // สร้างโทเค็นสำหรับรีเซ็ตรหัสผ่าน
     const resetToken = crypto.randomBytes(32).toString("hex");
-    const resetTokenExpire = new Date(Date.now() + 60 * 60 * 1000); // ✅ หมดอายุใน 1 ชั่วโมง
+    const resetTokenExpire = new Date(Date.now() + 60 * 60 * 1000);
 
     // บันทึก Token ลงในฐานข้อมูล
     await connection.execute(
@@ -199,7 +199,7 @@ const forgetPassword = async (req, res) => {
       },
     });
 
-    const resetLink = `https://senior-test-deploy-production-1362.up.railway.app/api/auth/reset-password?token=${resetToken}`;
+    const resetLink = `DekDekApp://reset-password?token=${resetToken}`;
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
