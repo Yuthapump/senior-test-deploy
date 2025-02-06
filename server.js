@@ -80,6 +80,12 @@ app.post("/api/upload", (req, res) => {
   });
 });
 
+// ให้บริการ assetlinks.json บนเส้นทาง /.well-known/
+app.use(
+  "/.well-known",
+  express.static(path.join(__dirname, "public/.well-known"))
+);
+
 // === Middleware สำหรับตรวจสอบ Token หรือ Authorization ===
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
