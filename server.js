@@ -27,7 +27,7 @@ app.set("trust proxy", 1);
 // === ✅ ตั้งค่า Rate Limit เพื่อป้องกันการโจมตี DDoS ====
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 นาที
-  max: 1000, // จำกัดการเรียก API ต่อ 15 นาทีต่อ IP
+  max: 700, // จำกัดการเรียก API ต่อ 15 นาทีต่อ IP
   message: "Too many requests, please try again later.",
 });
 app.use(limiter);
