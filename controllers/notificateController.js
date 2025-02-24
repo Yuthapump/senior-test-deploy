@@ -72,19 +72,33 @@ const approveAccessRequest = async (req, res) => {
       [supervisor_id, child_id]
     );
 
+    // ✅ เพิ่ม Notification ลงในฐานข้อมูล
+    await connection.execute(
+      "INSERT INTO notifications (user_id, message, supervisor_id, child_id, template_id, status) VALUES (?, ?, ?, ?, ?, ?)",
+      [
+        supervisor_id,
+        "✅ การขอเข้าถึงข้อมูลของเด็กได้รับการอนุมัติแล้ว!",
+        supervisor_id,
+        child_id,
+        1,
+        "unread",
+      ]
+    );
+
+    // ค้นหา Expo Push Token ของ Supervisor
     const [supervisorSend] = await connection.execute(
       "SELECT expo_push_token FROM expo_tokens WHERE user_id = ?",
       [supervisor_id]
     );
 
     if (!supervisorSend.length) {
-      return res.status(404).json({ message: "supervisor not found" });
+      return res.status(404).json({ message: "Supervisor not found" });
     }
 
     const supervisorPushToken = supervisorSend[0].expo_push_token;
 
     if (supervisorPushToken) {
-      // ส่ง push notification ไปยังผู้ดูแล
+      // ✅ ส่ง Push Notification ไปยังผู้ดูแล
       await sendPushNotification(
         supervisorPushToken,
         "การขอเข้าถึงข้อมูลของเด็กได้รับการอนุมัติแล้ว!"
@@ -94,7 +108,8 @@ const approveAccessRequest = async (req, res) => {
     connection.release();
 
     return res.status(200).json({
-      message: "Access request approved and notification sent to supervisor",
+      message:
+        "Access request approved, notification saved, and push sent to supervisor",
     });
   } catch (err) {
     console.error("Error approving access request:", err);
@@ -177,7 +192,7 @@ const sendAssessmentReminder = async () => {
       JOIN assessments a ON c.child_id = a.child_id
       JOIN users u ON a.user_id = u.user_id 
       JOIN expo_tokens et ON a.user_id = et.user_id 
-      WHERE a.assessment_date <= NOW() - INTERVAL 14 DAY
+      WHERE a.assessment_date <= NOW() - INTERVAL 5 MINUTE
       ORDER BY a.assessment_date DESC; 
     `);
 
@@ -191,8 +206,8 @@ const sendAssessmentReminder = async () => {
 
       // ✅ บันทึกแจ้งเตือนในฐานข้อมูล
       await connection.execute(
-        "INSERT INTO notifications (user_id, message, supervisor_id, child_id, status) VALUES (?, ?, ?, ?, ?)",
-        [child.user_id, message, child.user_id, child.child_id, "unread"]
+        "INSERT INTO notifications (user_id, message, supervisor_id, child_id, template_id, status) VALUES (?, ?, ?, ?, ?, ?)",
+        [child.user_id, message, child.user_id, child.child_id, 2, "unread"]
       );
 
       // ✅ ส่ง Push Notification
@@ -211,9 +226,42 @@ const sendAssessmentReminder = async () => {
   }
 };
 
+// Function to mark a notification as read
+const markNotificationAsRead = async (req, res) => {
+  const { notification_id } = req.body;
+
+  if (!notification_id) {
+    return res.status(400).json({ message: "Notification ID is required" });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+
+    // อัปเดต status เป็น 'read'
+    const [result] = await connection.execute(
+      "UPDATE notifications SET status = 'read' WHERE notification_id = ?",
+      [notification_id]
+    );
+
+    connection.release();
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Notification not found" });
+    }
+
+    return res.status(200).json({ message: "Notification marked as read" });
+  } catch (error) {
+    console.error("Error updating notification status:", error);
+    return res
+      .status(500)
+      .json({ message: "Error updating notification status" });
+  }
+};
+
 module.exports = {
   approveAccessRequest,
   getAllNotifications,
   saveExpoPushToken,
   sendAssessmentReminder,
+  markNotificationAsRead,
 };

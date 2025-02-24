@@ -285,12 +285,13 @@ const addChildForSupervisor = async (req, res) => {
 
       // แจ้งเตือนผู้ปกครองในระบบ
       await connection.execute(
-        "INSERT INTO notifications (user_id, message, supervisor_id, child_id, status) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO notifications (user_id, message, supervisor_id, child_id, template_id, status) VALUES (?, ?, ?, ?, ?, ?)",
         [
           parent_id,
           `คุณ ${supervisorName} ขอเข้าถึงข้อมูลของ ${firstName} ${lastName} เพื่อใช้ในการติดตามและประเมินพัฒนาการ`,
           supervisor_id,
           child.child_id,
+          1,
           "unread",
         ]
       );

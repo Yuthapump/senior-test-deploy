@@ -129,7 +129,8 @@ app.use("/api/notifications", authenticateToken, notificateRoutes);
 
 // === Send Warning Assessment per 2 weeks ===
 sendAssessmentReminder();
-setInterval(sendAssessmentReminder, 24 * 60 * 60 * 1000);
+// setInterval(sendAssessmentReminder, 24 * 60 * 60 * 1000);
+setInterval(sendAssessmentReminder, 10 * 60 * 1000); // for test 10 minutes
 
 // === Server Start ===
 app.listen(port, () => {
