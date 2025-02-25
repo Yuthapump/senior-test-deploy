@@ -304,7 +304,7 @@ const getAssessmentsAllChild = async (req, res) => {
 
 //
 const getAssessmentsByChild = async (req, res) => {
-  const { parent_id, child_id } = req.query;
+  const { parent_id, child_id } = req.params;
 
   if (!parent_id || !child_id) {
     return res.status(400).json({
