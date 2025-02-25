@@ -22,7 +22,7 @@ router.post(
 
 // Route to fetch assessments for a child "in_progress"
 router.get(
-  "/assessments-child/:child_id",
+  "/assessments-child/:parent_id/:child_id",
   assessmentController.getAssessmentsByChild
 );
 
