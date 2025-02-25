@@ -120,6 +120,7 @@ const approveAccessRequest = async (req, res) => {
 // saveExpoPushToken
 const saveExpoPushToken = async (req, res) => {
   const { user_id, expoPushToken } = req.body;
+  console.log("📩 Received Token at Backend:", expoPushToken);
 
   if (!user_id || !expoPushToken) {
     return res

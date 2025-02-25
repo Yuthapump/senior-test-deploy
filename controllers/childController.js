@@ -213,6 +213,14 @@ const addChildForSupervisor = async (req, res) => {
     return res.status(400).json({ message: "Required fields are missing" });
   }
 
+  console.log("firstName:", firstName);
+  console.log("lastName:", lastName);
+  console.log("nickName:", nickName);
+  console.log("formattedBirthday:", formattedBirthday);
+  console.log("gender:", gender);
+  console.log("supervisor_id:", supervisor_id);
+  console.log("childPic:", childPic);
+
   try {
     const connection = await pool.getConnection(); // ใช้ pool เพื่อเชื่อมต่อ
 
@@ -296,7 +304,7 @@ const addChildForSupervisor = async (req, res) => {
         ]
       );
 
-      /// ดึง ExpoPushToken ล่าสุดของผู้ปกครอง
+      // ดึง ExpoPushToken ล่าสุดของผู้ปกครอง
       const [tokenRows] = await connection.execute(
         `SELECT expo_push_token
    FROM expo_tokens
