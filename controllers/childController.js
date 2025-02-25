@@ -213,6 +213,8 @@ const addChildForSupervisor = async (req, res) => {
     return res.status(400).json({ message: "Required fields are missing" });
   }
 
+  console.log("req.body:", req.body);
+  console.log("rooms_id:", rooms_id);
   // console.log("firstName:", firstName);
   // console.log("lastName:", lastName);
   // console.log("nickName:", nickName);
@@ -341,44 +343,44 @@ const addChildForSupervisor = async (req, res) => {
       });
     }
 
-    console.log("Child does not exist in the system");
-    console.log("req.body:", req.body);
+    // console.log("Child does not exist in the system");
+    // console.log("req.body:", req.body);
 
-    // ถ้าเด็กไม่มีในระบบ, เพิ่มเด็กใหม่ลงใน children
-    const [result] = await connection.execute(
-      "INSERT INTO children (firstName, lastName, nickName, birthday, gender, user_id, childPic) VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, NULL))",
-      [
-        firstName,
-        lastName,
-        nickName,
-        formattedBirthday,
-        gender,
-        supervisor_id,
-        childPic,
-      ]
-    );
+    // // ถ้าเด็กไม่มีในระบบ, เพิ่มเด็กใหม่ลงใน children
+    // const [result] = await connection.execute(
+    //   "INSERT INTO children (firstName, lastName, nickName, birthday, gender, user_id, childPic) VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, NULL))",
+    //   [
+    //     firstName,
+    //     lastName,
+    //     nickName,
+    //     formattedBirthday,
+    //     gender,
+    //     supervisor_id,
+    //     childPic,
+    //   ]
+    // );
 
-    console.log("Child added by supervisor successfully: ", {
-      firstName,
-      lastName,
-      nickName,
-      birthday: formattedBirthday,
-      gender,
-      supervisor_id,
-      childPic,
-    });
+    // console.log("Child added by supervisor successfully: ", {
+    //   firstName,
+    //   lastName,
+    //   nickName,
+    //   birthday: formattedBirthday,
+    //   gender,
+    //   supervisor_id,
+    //   childPic,
+    // });
 
-    // เพิ่มเด็กในตาราง supervisor_children
-    await connection.execute(
-      "INSERT INTO supervisor_children (supervisor_id, child_id) VALUES (?, ?)",
-      [supervisor_id, result.insertId]
-    );
+    // // เพิ่มเด็กในตาราง supervisor_children
+    // await connection.execute(
+    //   "INSERT INTO supervisor_children (supervisor_id, child_id) VALUES (?, ?)",
+    //   [supervisor_id, result.insertId]
+    // );
 
-    // เพิ่มเด็กใน rooms_children
-    await connection.execute(
-      "INSERT INTO rooms_children (rooms_id, child_id) VALUES (?, ?)",
-      [rooms_id, result.insertId]
-    );
+    // // เพิ่มเด็กใน rooms_children
+    // await connection.execute(
+    //   "INSERT INTO rooms_children (rooms_id, child_id) VALUES (?, ?)",
+    //   [rooms_id, result.insertId]
+    // );
 
     connection.release(); // คืน connection กลับสู่ pool
 
