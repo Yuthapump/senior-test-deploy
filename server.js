@@ -123,7 +123,7 @@ app.use("/uploads", express.static("uploads"));
 app.use("/api/auth", authRoutes);
 app.use("/api/profiles", authenticateToken, profileRoutes);
 app.use("/api/childs", authenticateToken, childRoutes);
-app.use("/api/assessments", assessmentRoutes);
+app.use("/api/assessments", authenticateToken, assessmentRoutes);
 app.use("/api/rooms", authenticateToken, roomRoutes);
 app.use("/api/notifications", authenticateToken, notificateRoutes);
 
