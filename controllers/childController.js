@@ -216,7 +216,7 @@ const addChildForSupervisor = async (req, res) => {
   console.log("firstName:", firstName);
   console.log("lastName:", lastName);
   console.log("nickName:", nickName);
-  console.log("formattedBirthday:", formattedBirthday);
+  console.log("formattedBirthday:", birthday);
   console.log("gender:", gender);
   console.log("supervisor_id:", supervisor_id);
   console.log("childPic:", childPic);
@@ -257,6 +257,14 @@ const addChildForSupervisor = async (req, res) => {
       // ถ้ามีเด็กในระบบแล้ว
       const child = existingChild[0];
       const parent_id = child.user_id;
+
+      console.log("firstName:", firstName);
+      console.log("lastName:", lastName);
+      console.log("nickName:", nickName);
+      console.log("formattedBirthday:", formattedBirthday);
+      console.log("gender:", gender);
+      console.log("supervisor_id:", supervisor_id);
+      console.log("childPic:", childPic);
 
       // ตรวจสอบสถานะการขอสิทธิ์จากผู้ปกครอง
       const [existingRequest] = await connection.execute(
