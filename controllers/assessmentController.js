@@ -306,9 +306,12 @@ const getAssessmentsAllChild = async (req, res) => {
 const getAssessmentsByChild = async (req, res) => {
   const { parent_id, child_id } = req.params;
 
+  console.log("parent_id: ", parent_id);
+  console.log("child_id: ", child_id);
+
   if (!parent_id || !child_id) {
     return res.status(400).json({
-      message: "parent_id และ child_id เป็นค่าที่จำเป็น",
+      message: "parent_id and child_id required",
     });
   }
 
