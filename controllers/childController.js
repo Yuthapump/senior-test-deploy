@@ -215,13 +215,6 @@ const addChildForSupervisor = async (req, res) => {
 
   console.log("req.body:", req.body);
   console.log("rooms_id:", rooms_id);
-  // console.log("firstName:", firstName);
-  // console.log("lastName:", lastName);
-  // console.log("nickName:", nickName);
-  // console.log("formattedBirthday:", birthday);
-  // console.log("gender:", gender);
-  // console.log("supervisor_id:", supervisor_id);
-  // console.log("childPic:", childPic);
 
   try {
     const connection = await pool.getConnection(); // ใช้ pool เพื่อเชื่อมต่อ

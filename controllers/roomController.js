@@ -196,20 +196,13 @@ const getChildDataOfRoom = async (req, res) => {
 
     connection = await pool.getConnection();
 
-    // ✅ ดึงข้อมูลห้อง พร้อม `child_count`
+    // ✅ ตรวจสอบว่าห้องนี้เป็นของ Supervisor นี้หรือไม่
     const [room] = await connection.execute(
       `
-      SELECT 
-        r.rooms_id, r.rooms_name, r.roomsPic, r.supervisor_id, r.colors,
-        COALESCE(rc.child_count, 0) AS child_count
-      FROM rooms r
-      LEFT JOIN (
-        SELECT rooms_id, COUNT(child_id) AS child_count 
-        FROM rooms_children 
-        GROUP BY rooms_id
-      ) rc ON r.rooms_id = rc.rooms_id
-      WHERE r.rooms_id = ? AND r.supervisor_id = ?;
-    `,
+      SELECT rooms_id, rooms_name, roomsPic, supervisor_id, colors 
+      FROM rooms 
+      WHERE rooms_id = ? AND supervisor_id = ?;
+      `,
       [rooms_id, supervisor_id]
     );
 
@@ -219,16 +212,34 @@ const getChildDataOfRoom = async (req, res) => {
         .json({ message: "Room not found or not managed by this supervisor" });
     }
 
+    // ✅ ดึงข้อมูลเด็กที่อยู่ในห้องนี้จากตาราง rooms_children และ children
+    const [children] = await connection.execute(
+      `
+      SELECT 
+        c.child_id, 
+        c.firstName, 
+        c.lastName, 
+        c.nickName, 
+        c.birthday, 
+        c.gender, 
+        c.childPic 
+      FROM rooms_children rc
+      JOIN children c ON rc.child_id = c.child_id
+      WHERE rc.rooms_id = ?;
+      `,
+      [rooms_id]
+    );
+
     return res.status(200).json({
-      message: "Child data retrieved successfully",
+      message: "Children data retrieved successfully",
       roomData: {
         room_id: room[0].rooms_id,
         room_name: room[0].rooms_name,
         room_pic: room[0].roomsPic,
-        supervisor_id: supervisor_id,
+        supervisor_id: room[0].supervisor_id,
         colors: room[0].colors,
-        child_count: room[0].child_count,
       },
+      children: children,
     });
   } catch (error) {
     console.error("Error fetching child data of room:", error);
