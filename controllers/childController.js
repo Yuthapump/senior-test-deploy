@@ -213,13 +213,13 @@ const addChildForSupervisor = async (req, res) => {
     return res.status(400).json({ message: "Required fields are missing" });
   }
 
-  console.log("firstName:", firstName);
-  console.log("lastName:", lastName);
-  console.log("nickName:", nickName);
-  console.log("formattedBirthday:", birthday);
-  console.log("gender:", gender);
-  console.log("supervisor_id:", supervisor_id);
-  console.log("childPic:", childPic);
+  // console.log("firstName:", firstName);
+  // console.log("lastName:", lastName);
+  // console.log("nickName:", nickName);
+  // console.log("formattedBirthday:", birthday);
+  // console.log("gender:", gender);
+  // console.log("supervisor_id:", supervisor_id);
+  // console.log("childPic:", childPic);
 
   try {
     const connection = await pool.getConnection(); // ใช้ pool เพื่อเชื่อมต่อ
@@ -340,6 +340,9 @@ const addChildForSupervisor = async (req, res) => {
         message: `Access request sent to parent (ID: ${parent_id}) for child: ${firstName} ${lastName}.`,
       });
     }
+
+    console.log("Child does not exist in the system");
+    console.log("req.body:", req.body);
 
     // ถ้าเด็กไม่มีในระบบ, เพิ่มเด็กใหม่ลงใน children
     const [result] = await connection.execute(
