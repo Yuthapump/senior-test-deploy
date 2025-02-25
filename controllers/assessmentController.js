@@ -260,7 +260,7 @@ const fetchNextAssessment = async (req, res) => {
 };
 
 // ฟังก์ชันสำหรับดึงรายละเอียดการประเมินทั้งหมดของเด็ก
-const getAssessmentsByChild = async (req, res) => {
+const getAssessmentsAllChild = async (req, res) => {
   const { child_id } = req.params;
 
   // Validate child_id
@@ -299,6 +299,84 @@ const getAssessmentsByChild = async (req, res) => {
   } catch (error) {
     console.error("Error fetching assessments:", error);
     res.status(500).json({ error: "Failed to retrieve assessments" });
+  }
+};
+
+//
+const getAssessmentsByChild = async (req, res) => {
+  const { parent_id, child_id } = req.query;
+
+  if (!parent_id || !child_id) {
+    return res.status(400).json({
+      message: "parent_id และ child_id เป็นค่าที่จำเป็น",
+    });
+  }
+
+  let connection;
+  try {
+    connection = await pool.getConnection();
+
+    // ตรวจสอบว่าเด็กเป็นบุตรของ parent_id นี้จริงหรือไม่
+    const [childRows] = await connection.execute(
+      "SELECT * FROM children c JOIN parent_children pc ON c.child_id = pc.child_id WHERE c.child_id = ? AND pc.parent_id = ?",
+      [child_id, parent_id]
+    );
+
+    if (childRows.length === 0) {
+      return res.status(404).json({
+        message: "ไม่พบข้อมูลเด็กสำหรับ parent_id ที่ระบุ",
+      });
+    }
+
+    // ดึงข้อมูลการประเมินของเด็กที่มี status = 'in_progress'
+    const [assessments] = await connection.execute(
+      `SELECT a.assessment_id, a.assessment_rank, a.aspect, 
+              a.assessment_details_id, a.assessment_date, a.status 
+       FROM assessments a 
+       WHERE a.child_id = ? AND a.status = 'in_progress'`,
+      [child_id]
+    );
+
+    connection.release();
+
+    if (assessments.length === 0) {
+      return res.status(200).json({
+        message: "ยังไม่มีการเริ่มต้นการประเมิน",
+        parent_id,
+        child: {
+          child_id: childRows[0].child_id,
+          firstName: childRows[0].firstName,
+          lastName: childRows[0].lastName,
+          nickName: childRows[0].nickName,
+          birthday: childRows[0].birthday,
+          gender: childRows[0].gender,
+          childPic: childRows[0].childPic,
+          assessments: [],
+        },
+      });
+    }
+
+    return res.status(200).json({
+      message: "ดึงข้อมูลการประเมินของเด็กที่อยู่ในสถานะ 'in_progress' สำเร็จ",
+      parent_id,
+      child: {
+        child_id: childRows[0].child_id,
+        firstName: childRows[0].firstName,
+        lastName: childRows[0].lastName,
+        nickName: childRows[0].nickName,
+        birthday: childRows[0].birthday,
+        gender: childRows[0].gender,
+        childPic: childRows[0].childPic,
+        assessments: assessments,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching child assessment data:", error);
+    return res.status(500).json({
+      message: "เกิดข้อผิดพลาดในการดึงข้อมูลการประเมิน",
+    });
+  } finally {
+    if (connection) connection.release();
   }
 };
 
@@ -603,4 +681,5 @@ module.exports = {
   updateSupervisorAssessment,
   fetchNextAssessmentSupervisor,
   getSupervisorAssessmentsAllData,
+  getAssessmentsAllChild,
 };
