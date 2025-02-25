@@ -319,7 +319,7 @@ const getAssessmentsByChild = async (req, res) => {
   try {
     connection = await pool.getConnection();
 
-    // ตรวจสอบว่าเด็กเป็นบุตรของ parent_id นี้จริงหรือไม่
+    // ตรวจสอบว่าเด็กเป็นบุตรของ parent_id หรือไม่
     const [childRows] = await connection.execute(
       "SELECT * FROM children c JOIN parent_children pc ON c.child_id = pc.child_id WHERE c.child_id = ? AND pc.parent_id = ?",
       [child_id, parent_id]
@@ -339,6 +339,15 @@ const getAssessmentsByChild = async (req, res) => {
        WHERE a.child_id = ? AND a.status = 'in_progress'`,
       [child_id]
     );
+
+    // ดึงรายละเอียดของ assessment_details จาก assessment_details_id
+    for (let i = 0; i < assessments.length; i++) {
+      const [details] = await connection.execute(
+        `SELECT * FROM assessment_details WHERE assessment_details_id = ?`,
+        [assessments[i].assessment_details_id]
+      );
+      assessments[i].details = details.length > 0 ? details[0] : null;
+    }
 
     connection.release();
 
