@@ -120,12 +120,20 @@ app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 
 // === Routes ===
+// app.use("/api/auth", authRoutes);
+// app.use("/api/profiles", authenticateToken, profileRoutes);
+// app.use("/api/childs", authenticateToken, childRoutes);
+// app.use("/api/assessments", authenticateToken, assessmentRoutes);
+// app.use("/api/rooms", authenticateToken, roomRoutes);
+// app.use("/api/notifications", authenticateToken, notificateRoutes);
+
+// === Routes ===
 app.use("/api/auth", authRoutes);
-app.use("/api/profiles", authenticateToken, profileRoutes);
-app.use("/api/childs", authenticateToken, childRoutes);
-app.use("/api/assessments", authenticateToken, assessmentRoutes);
-app.use("/api/rooms", authenticateToken, roomRoutes);
-app.use("/api/notifications", authenticateToken, notificateRoutes);
+app.use("/api/profiles", profileRoutes);
+app.use("/api/childs", childRoutes);
+app.use("/api/assessments", assessmentRoutes);
+app.use("/api/rooms", roomRoutes);
+app.use("/api/notifications", notificateRoutes);
 
 // === Send Warning Assessment per 2 weeks ===
 sendAssessmentReminder();
