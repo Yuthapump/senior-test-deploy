@@ -5,7 +5,7 @@ const multer = require("multer");
 const { pool } = require("../config/db");
 
 // ตรวจสอบและสร้างโฟลเดอร์ uploads/profilePic หากยังไม่มี
-const dir = "uploads/profilePic";
+const dir = "uploads/childrenPic";
 if (!fs.existsSync(dir)) {
   fs.mkdirSync(dir, { recursive: true });
 }
