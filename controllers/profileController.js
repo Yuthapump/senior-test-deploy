@@ -117,7 +117,7 @@ const getProfilePic = async (req, res) => {
 const updateProfileChild = async (req, res) => {
   const { child_id, firstName, lastName, nickName, birthday, gender } =
     req.body;
-  const newChildPic = req.file ? req.file.path : null;
+  const childPic = req.file ? req.file.path : null;
 
   if (!child_id) {
     return res
@@ -160,7 +160,7 @@ const updateProfileChild = async (req, res) => {
         nickName || null,
         birthday || null,
         gender || null,
-        newChildPic,
+        childPic,
         child_id,
       ]
     );
@@ -168,7 +168,7 @@ const updateProfileChild = async (req, res) => {
     connection.release();
 
     // 🔹 ลบ `childPic` เก่า ถ้ามีการอัปโหลดไฟล์ใหม่
-    if (newChildPic && oldChildPic) {
+    if (childPic && oldChildPic) {
       fs.unlink(oldChildPic, (err) => {
         if (err) {
           console.error("Error deleting old child picture:", err);
