@@ -15,7 +15,7 @@ router.put(
 router.put(
   "/update-child-profile",
   upload.single("childPic"),
-  profileController.updateChildProfile
+  profileController.updateProfileChild
 );
 
 // Route สำหรับการดึงภาพโปรไฟล์
