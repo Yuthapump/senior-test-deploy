@@ -117,7 +117,7 @@ const getProfilePic = async (req, res) => {
 const updateProfileChild = async (req, res) => {
   const { child_id, firstName, lastName, nickName, birthday, gender } =
     req.body;
-  const childPic = req.file ? req.file.path : null;
+  const newChildPic = req.file ? req.file.path : null;
 
   if (!child_id) {
     return res
@@ -127,15 +127,17 @@ const updateProfileChild = async (req, res) => {
 
   let connection;
   try {
-    connection = await pool.getConnection();
+    connection = await pool.getConnection(); // 🔥 เรียก connection อย่างถูกต้อง
+    await connection.beginTransaction(); // 🔥 เริ่ม Transaction
 
-    // 🔹 ดึง `childPic` เก่าจากฐานข้อมูลก่อนอัปเดต
+    // 🔍 ดึง childPic เดิมก่อนอัปเดต
     const [oldChildPicRows] = await connection.execute(
       "SELECT childPic FROM children WHERE child_id = ?",
       [child_id]
     );
 
     if (oldChildPicRows.length === 0) {
+      await connection.rollback();
       connection.release();
       return res
         .status(404)
@@ -144,7 +146,7 @@ const updateProfileChild = async (req, res) => {
 
     const oldChildPic = oldChildPicRows[0].childPic;
 
-    // 🔹 อัปเดตข้อมูลเด็กในฐานข้อมูล
+    // 🔄 อัปเดตข้อมูลเด็ก
     await connection.execute(
       `UPDATE children 
        SET firstName = COALESCE(?, firstName), 
@@ -160,30 +162,23 @@ const updateProfileChild = async (req, res) => {
         nickName || null,
         birthday || null,
         gender || null,
-        childPic,
+        newChildPic || oldChildPic,
         child_id,
       ]
     );
 
-    connection.release();
-
-    // 🔹 ลบ `childPic` เก่า ถ้ามีการอัปโหลดไฟล์ใหม่
-    if (childPic && oldChildPic) {
-      fs.unlink(oldChildPic, (err) => {
-        if (err) {
-          console.error("Error deleting old child picture:", err);
-        } else {
-          console.log("Old child picture deleted successfully:", oldChildPic);
-        }
-      });
-    }
+    await connection.commit(); // ✅ ยืนยันการอัปเดต
+    connection.release(); // ✅ ปล่อย Connection
 
     res
       .status(200)
       .json({ success: true, message: "Child profile updated successfully" });
   } catch (error) {
+    if (connection) {
+      await connection.rollback(); // ❌ ยกเลิกการเปลี่ยนแปลงถ้ามีข้อผิดพลาด
+      connection.release();
+    }
     console.error("Error updating child profile:", error);
-    if (connection) connection.release();
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
