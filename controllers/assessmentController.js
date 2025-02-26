@@ -589,6 +589,7 @@ const fetchNextAssessmentSupervisor = async (req, res) => {
   const { supervisor_assessment_id, supervisor_id } = req.body;
   const { child_id, aspect } = req.params;
   console.log("supervisor_assessment_id: ", supervisor_assessment_id);
+  console.log("supervisor_id: ", supervisor_id);
 
   try {
     const updateQuery = `

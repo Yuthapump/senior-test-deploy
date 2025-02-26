@@ -113,6 +113,81 @@ const getProfilePic = async (req, res) => {
   }
 };
 
+// updateProfileChild
+const updateProfileChild = async (req, res) => {
+  const { child_id, firstName, lastName, nickName, birthday, gender } =
+    req.body;
+  const newChildPic = req.file ? req.file.path : null;
+
+  if (!child_id) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Missing child_id" });
+  }
+
+  let connection;
+  try {
+    connection = await pool.getConnection();
+
+    // 🔹 ดึง `childPic` เก่าจากฐานข้อมูลก่อนอัปเดต
+    const [oldChildPicRows] = await connection.execute(
+      "SELECT childPic FROM children WHERE child_id = ?",
+      [child_id]
+    );
+
+    if (oldChildPicRows.length === 0) {
+      connection.release();
+      return res
+        .status(404)
+        .json({ success: false, message: "Child not found" });
+    }
+
+    const oldChildPic = oldChildPicRows[0].childPic;
+
+    // 🔹 อัปเดตข้อมูลเด็กในฐานข้อมูล
+    await connection.execute(
+      `UPDATE children 
+       SET firstName = COALESCE(?, firstName), 
+           lastName = COALESCE(?, lastName), 
+           nickName = COALESCE(?, nickName), 
+           birthday = COALESCE(?, birthday), 
+           gender = COALESCE(?, gender), 
+           childPic = COALESCE(?, childPic) 
+       WHERE child_id = ?`,
+      [
+        firstName || null,
+        lastName || null,
+        nickName || null,
+        birthday || null,
+        gender || null,
+        newChildPic,
+        child_id,
+      ]
+    );
+
+    connection.release();
+
+    // 🔹 ลบ `childPic` เก่า ถ้ามีการอัปโหลดไฟล์ใหม่
+    if (newChildPic && oldChildPic) {
+      fs.unlink(oldChildPic, (err) => {
+        if (err) {
+          console.error("Error deleting old child picture:", err);
+        } else {
+          console.log("Old child picture deleted successfully:", oldChildPic);
+        }
+      });
+    }
+
+    res
+      .status(200)
+      .json({ success: true, message: "Child profile updated successfully" });
+  } catch (error) {
+    console.error("Error updating child profile:", error);
+    if (connection) connection.release();
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 const deleteUserAccount = async (req, res) => {
   const { user_id } = req.params;
 
@@ -190,6 +265,7 @@ const deleteChild = async (req, res) => {
 module.exports = {
   updateUserProfile,
   getProfilePic,
+  updateProfileChild,
   upload,
   deleteUserAccount,
   deleteChild,

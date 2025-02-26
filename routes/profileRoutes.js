@@ -12,6 +12,12 @@ router.put(
   profileController.updateUserProfile
 );
 
+router.put(
+  "/update-child-profile",
+  upload.single("childPic"),
+  profileController.updateChildProfile
+);
+
 // Route สำหรับการดึงภาพโปรไฟล์
 router.get("/get-user-profile-pic", profileController.getProfilePic);
 
