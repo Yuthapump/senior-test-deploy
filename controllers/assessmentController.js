@@ -495,7 +495,9 @@ const getAssessmentsForSupervisor = async (req, res) => {
     );
 
     if (inProgressAssessments.length > 0) {
-      const inProgressAssessment = inProgressAssessments.pop();
+      const inProgressAssessment = inProgressAssessments
+        .sort((a, b) => a.assessment_rank - b.assessment_rank)
+        .pop();
 
       const assessmentDetailsQuery = `
         SELECT * FROM ${tableName}
