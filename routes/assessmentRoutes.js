@@ -60,7 +60,7 @@ router.get(
 
 // Route to getAssessmentsByChildForSupervisor
 router.get(
-  "/assessments-child-supervisor/:parent_id/:child_id",
+  "/assessments-child-supervisor/:supervisor_id/:child_id",
   assessmentController.getAssessmentsByChildForSupervisor
 );
 
