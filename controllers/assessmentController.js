@@ -422,34 +422,157 @@ const getAssessmentsForSupervisor = async (req, res) => {
     const ageInMonths = parseInt(childAgeInMonths, 10);
     const tableName = `assessment_details`;
 
+    // ✅ ค้นหาการประเมินล่าสุดของเด็กใน aspect นี้
     const query = `
-      SELECT a.supervisor_assessment_id AS assessment_id, 
-              a.assessment_rank, a.aspect, 
-              a.assessment_details_id, a.assessment_date, a.status 
-      FROM assessment_supervisor a 
-      WHERE a.child_id = ? AND a.supervisor_id = ? 
-            AND (a.status = 'in_progress' OR a.status = 'passed_all' OR a.status = 'not_passed')
-      ORDER BY a.aspect ASC, a.assessment_rank DESC`;
+      SELECT a.supervisor_assessment_id AS assessment_id, a.assessment_date, ad.assessment_rank, a.status
+      FROM assessment_supervisor a
+      JOIN ${tableName} ad ON a.assessment_details_id = ad.assessment_details_id
+      WHERE a.child_id = ? AND ad.aspect = ?
+      ORDER BY ad.assessment_rank DESC LIMIT 1
+    `;
+    const [rows] = await pool.query(query, [child_id, aspect]);
 
-    const [assessments] = await pool.query(query, [child_id, supervisor_id]);
+    // ✅ กรณีไม่มีการประเมินเลย → สร้างการประเมินใหม่
+    if (rows.length === 0) {
+      const defaultQuery = `
+        SELECT assessment_details_id, aspect, assessment_rank, assessment_name, age_range
+        FROM ${tableName}
+        WHERE aspect = ?
+        ORDER BY assessment_rank ASC
+      `;
+      const [defaultAssessments] = await pool.query(defaultQuery, [aspect]);
 
-    // ✅ ดึงรายละเอียดของ assessment_details
-    for (let i = 0; i < assessments.length; i++) {
-      const [details] = await pool.query(
-        `SELECT * FROM ${tableName} WHERE assessment_details_id = ?`,
-        [assessments[i].assessment_details_id]
-      );
-      assessments[i].details = details.length > 0 ? details[0] : null;
+      const defaultAssessment = defaultAssessments.find((assessment) => {
+        const [start, end] = assessment.age_range.split("-").map(Number);
+        return ageInMonths >= start && ageInMonths <= end;
+      });
+
+      if (!defaultAssessment) {
+        return res
+          .status(404)
+          .json({ error: "ไม่พบข้อมูลการประเมินสำหรับด้านที่ระบุ" });
+      }
+
+      const insertQuery = `
+        INSERT INTO assessment_supervisor (child_id, assessment_rank, aspect, status, supervisor_id, assessment_details_id)
+        VALUES (?, ?, ?, 'in_progress', ?, ?)
+      `;
+      const [result] = await pool.query(insertQuery, [
+        child_id,
+        defaultAssessment.assessment_rank,
+        aspect,
+        supervisor_id,
+        defaultAssessment.assessment_details_id,
+      ]);
+
+      const assessmentDetailsQuery = `
+        SELECT * FROM ${tableName}
+        WHERE assessment_rank = ? AND aspect = ?
+      `;
+      const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
+        defaultAssessment.assessment_rank,
+        aspect,
+      ]);
+
+      return res.status(201).json({
+        message: "เริ่มต้นการประเมินใหม่สำหรับ Supervisor",
+        data: {
+          assessment_id: result.insertId,
+          child_id,
+          assessment_rank: defaultAssessment.assessment_rank,
+          aspect: defaultAssessment.aspect,
+          assessment_name: defaultAssessment.assessment_name,
+          status: "in_progress",
+          assessment_date: new Date().toISOString(),
+          details: assessmentDetails[0],
+        },
+      });
     }
 
-    return res.status(200).json({
+    // ✅ กรณีมี `in_progress` → คืนค่าการประเมินปัจจุบัน
+    const inProgressAssessments = rows.filter(
+      (row) => row.status === "in_progress"
+    );
+
+    if (inProgressAssessments.length > 0) {
+      const inProgressAssessment = inProgressAssessments.pop();
+
+      const assessmentDetailsQuery = `
+        SELECT * FROM ${tableName}
+        WHERE assessment_rank = ? AND aspect = ?
+      `;
+      const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
+        inProgressAssessment.assessment_rank,
+        aspect,
+      ]);
+
+      return res.status(200).json({
+        message: "กำลังดำเนินการประเมิน",
+        data: {
+          assessment_id: inProgressAssessment.assessment_id,
+          assessment_date: inProgressAssessment.assessment_date,
+          ...inProgressAssessment,
+          details: assessmentDetails[0],
+        },
+      });
+    }
+
+    // ✅ กรณีมี `passed_all` → ส่ง `null` ใน `assessmentDetails`
+    const passedAllAssessments = rows.filter(
+      (row) => row.status === "passed_all"
+    );
+
+    if (passedAllAssessments.length > 0) {
+      return res.status(200).json({
+        message: "การประเมินเสร็จสมบูรณ์สำหรับ aspect นี้",
+        data: {
+          assessment_id: null,
+          child_id,
+          assessment_rank: null,
+          aspect,
+          assessment_name: null,
+          status: "passed_all",
+          assessment_date: null,
+          details: null, // ✅ ส่ง `null`
+        },
+      });
+    }
+
+    // ✅ กรณีมี `not_passed`
+    const notPassedAssessments = rows.filter(
+      (row) => row.status === "not_passed"
+    );
+
+    if (notPassedAssessments.length > 0) {
+      const latestNotPassed = notPassedAssessments.pop();
+
+      const assessmentDetailsQuery = `
+        SELECT * FROM ${tableName}
+        WHERE assessment_rank = ? AND aspect = ?
+      `;
+      const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
+        latestNotPassed.assessment_rank,
+        aspect,
+      ]);
+
+      return res.status(200).json({
+        message: "การประเมินสถานะ 'not_passed'",
+        data: {
+          assessment_id: latestNotPassed.assessment_id,
+          child_id,
+          assessment_rank: latestNotPassed.assessment_rank,
+          aspect,
+          assessment_name: assessmentDetails[0]?.assessment_name || null,
+          status: "not_passed",
+          assessment_date: latestNotPassed.assessment_date,
+          details: assessmentDetails[0] || null,
+        },
+      });
+    }
+
+    return res.status(404).json({
       message:
-        "ดึงข้อมูลการประเมินของเด็กที่อยู่ในสถานะ 'in_progress', 'passed_all', หรือ 'not_passed' สำเร็จ",
-      supervisor_id,
-      child: {
-        child_id,
-        assessments,
-      },
+        "ไม่พบการประเมินที่อยู่ในสถานะ 'in_progress', 'passed_all' หรือ 'not_passed'",
     });
   } catch (error) {
     console.error("Error fetching supervisor assessments:", error);
