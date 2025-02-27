@@ -629,7 +629,8 @@ const updateSupervisorAssessment = async (req, res) => {
 };
 
 const fetchNextAssessmentSupervisor = async (req, res) => {
-  const { supervisor_assessment_id } = req.params;
+  const { supervisor_assessment_id, supervisor_id } = req.body;
+  const { child_id, aspect } = req.params;
 
   try {
     const updateQuery = `
@@ -650,7 +651,7 @@ const fetchNextAssessmentSupervisor = async (req, res) => {
 
     // ✅ ค้นหาข้อมูลปัจจุบันของการประเมิน
     const getCurrentAssessmentQuery = `
-      SELECT child_id, aspect, assessment_rank, supervisor_id 
+      SELECT assessment_rank
       FROM assessment_supervisor 
       WHERE supervisor_assessment_id = ?
     `;
@@ -662,8 +663,7 @@ const fetchNextAssessmentSupervisor = async (req, res) => {
       return res.status(404).json({ message: "ไม่พบข้อมูลการประเมินปัจจุบัน" });
     }
 
-    const { child_id, aspect, assessment_rank, supervisor_id } =
-      currentAssessment[0];
+    const { assessment_rank } = currentAssessment[0];
 
     // ✅ ค้นหา assessment ถัดไป
     const nextAssessmentQuery = `
