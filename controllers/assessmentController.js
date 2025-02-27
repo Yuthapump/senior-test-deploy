@@ -477,7 +477,7 @@ const getAssessmentsForSupervisor = async (req, res) => {
       return res.status(201).json({
         message: "เริ่มต้นการประเมินใหม่สำหรับ Supervisor",
         data: {
-          assessment_id: result.insertId,
+          supervisor_assessment_id: result.insertId,
           child_id,
           assessment_rank: defaultAssessment.assessment_rank,
           aspect: defaultAssessment.aspect,
@@ -509,7 +509,8 @@ const getAssessmentsForSupervisor = async (req, res) => {
       return res.status(200).json({
         message: "กำลังดำเนินการประเมิน",
         data: {
-          assessment_id: inProgressAssessment.assessment_id,
+          supervisor_assessment_id:
+            inProgressAssessment.supervisor_assessment_id,
           assessment_date: inProgressAssessment.assessment_date,
           ...inProgressAssessment,
           details: assessmentDetails[0],
@@ -526,7 +527,7 @@ const getAssessmentsForSupervisor = async (req, res) => {
       return res.status(200).json({
         message: "การประเมินเสร็จสมบูรณ์สำหรับ aspect นี้",
         data: {
-          assessment_id: null,
+          supervisor_assessment_id: null,
           child_id,
           assessment_rank: null,
           aspect,
@@ -558,7 +559,7 @@ const getAssessmentsForSupervisor = async (req, res) => {
       return res.status(200).json({
         message: "การประเมินสถานะ 'not_passed'",
         data: {
-          assessment_id: latestNotPassed.assessment_id,
+          supervisor_assessment_id: latestNotPassed.supervisor_assessment_id,
           child_id,
           assessment_rank: latestNotPassed.assessment_rank,
           aspect,
