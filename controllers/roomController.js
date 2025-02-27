@@ -255,6 +255,9 @@ const updateRoomProfile = async (req, res) => {
     const { rooms_name } = req.body;
     const { rooms_id, supervisor_id } = req.params;
 
+    console.log("RoomData Data: ", req.body);
+    console.log("RoomId Data: ", req.params);
+
     if (!rooms_id || !supervisor_id || !rooms_name) {
       return res.status(400).json({ message: "Missing required fields" });
     }
