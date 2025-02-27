@@ -314,45 +314,40 @@ const getAssessmentsAllChild = async (req, res) => {
   }
 };
 
-//
+// Get Assessment Last For a Child
 const getAssessmentsByChild = async (req, res) => {
   const { parent_id, child_id } = req.params;
 
-  console.log("parent_id: ", parent_id);
-  console.log("child_id: ", child_id);
-
   if (!parent_id || !child_id) {
-    return res.status(400).json({
-      message: "parent_id and child_id required",
-    });
+    return res.status(400).json({ message: "parent_id and child_id required" });
   }
 
   let connection;
   try {
     connection = await pool.getConnection();
 
-    // ตรวจสอบว่าเด็กเป็นบุตรของ parent_id หรือไม่
+    // ✅ ดึงข้อมูลเด็กที่ Parent ดูแล
     const [childRows] = await connection.execute(
-      "SELECT * FROM children c JOIN parent_children pc ON c.child_id = pc.child_id WHERE c.child_id = ? AND pc.parent_id = ?",
+      `SELECT * FROM children 
+       JOIN parent_children ON children.child_id = parent_children.child_id 
+       WHERE children.child_id = ? AND parent_children.parent_id = ?`,
       [child_id, parent_id]
     );
 
     if (childRows.length === 0) {
-      return res.status(404).json({
-        message: "ไม่พบข้อมูลเด็กสำหรับ parent_id ที่ระบุ",
-      });
+      return res.status(404).json({ message: "ไม่พบข้อมูลเด็ก" });
     }
 
-    // ดึงข้อมูลการประเมินของเด็กที่มี status = 'in_progress'
+    // ✅ ดึงข้อมูล `in_progress` หรือ `passed_all`
     const [assessments] = await connection.execute(
       `SELECT a.assessment_id, a.assessment_rank, a.aspect, 
               a.assessment_details_id, a.assessment_date, a.status 
        FROM assessments a 
-       WHERE a.child_id = ? AND a.status = 'in_progress'`,
+       WHERE a.child_id = ? AND (a.status = 'in_progress' OR a.status = 'passed_all')`,
       [child_id]
     );
 
-    // ดึงรายละเอียดของ assessment_details จาก assessment_details_id
+    // ✅ ดึงรายละเอียดของ assessment_details
     for (let i = 0; i < assessments.length; i++) {
       const [details] = await connection.execute(
         `SELECT * FROM assessment_details WHERE assessment_details_id = ?`,
@@ -363,42 +358,19 @@ const getAssessmentsByChild = async (req, res) => {
 
     connection.release();
 
-    if (assessments.length === 0) {
-      return res.status(200).json({
-        message: "ยังไม่มีการเริ่มต้นการประเมิน",
-        parent_id,
-        child: {
-          child_id: childRows[0].child_id,
-          firstName: childRows[0].firstName,
-          lastName: childRows[0].lastName,
-          nickName: childRows[0].nickName,
-          birthday: childRows[0].birthday,
-          gender: childRows[0].gender,
-          childPic: childRows[0].childPic,
-          assessments: [],
-        },
-      });
-    }
-
     return res.status(200).json({
-      message: "ดึงข้อมูลการประเมินของเด็กที่อยู่ในสถานะ 'in_progress' สำเร็จ",
+      message: "ดึงข้อมูลการประเมินของเด็กสำเร็จ",
       parent_id,
       child: {
-        child_id: childRows[0].child_id,
-        firstName: childRows[0].firstName,
-        lastName: childRows[0].lastName,
-        nickName: childRows[0].nickName,
-        birthday: childRows[0].birthday,
-        gender: childRows[0].gender,
-        childPic: childRows[0].childPic,
-        assessments: assessments,
+        ...childRows[0],
+        assessments,
       },
     });
   } catch (error) {
     console.error("Error fetching child assessment data:", error);
-    return res.status(500).json({
-      message: "เกิดข้อผิดพลาดในการดึงข้อมูลการประเมิน",
-    });
+    return res
+      .status(500)
+      .json({ message: "เกิดข้อผิดพลาดในการดึงข้อมูลการประเมิน" });
   } finally {
     if (connection) connection.release();
   }
@@ -451,166 +423,84 @@ const getAssessmentsForSupervisor = async (req, res) => {
     const tableName = `assessment_details`;
 
     const query = `
-      SELECT
-        a.supervisor_assessment_id,
-        a.assessment_date,
-        ad.assessment_rank,
-        a.status
-      FROM assessment_supervisor a
-      JOIN ${tableName} ad ON a.assessment_details_id = ad.assessment_details_id
-      WHERE a.child_id = ? AND ad.aspect = ?
-      ORDER BY ad.assessment_rank DESC LIMIT 1
-    `;
-    const [rows] = await pool.query(query, [child_id, aspect]);
+      SELECT a.supervisor_assessment_id AS assessment_id, 
+              a.assessment_rank, a.aspect, 
+              a.assessment_details_id, a.assessment_date, a.status 
+      FROM assessment_supervisor a 
+      WHERE a.child_id = ? AND a.supervisor_id = ? 
+            AND (a.status = 'in_progress' OR a.status = 'passed_all' OR a.status = 'not_passed')
+      ORDER BY a.aspect ASC, a.assessment_rank DESC`;
 
-    // ✅ กรณีไม่มี assessment → สร้าง assessment ใหม่
-    if (rows.length === 0) {
-      const defaultQuery = `
-        SELECT assessment_details_id, aspect, assessment_rank, assessment_name, age_range
-        FROM ${tableName}
-        WHERE aspect = ?
-        ORDER BY assessment_rank ASC
-      `;
-      const [defaultAssessments] = await pool.query(defaultQuery, [aspect]);
+    const [assessments] = await pool.query(query, [child_id, supervisor_id]);
 
-      const defaultAssessment = defaultAssessments.find((assessment) => {
-        const [start, end] = assessment.age_range.split("-").map(Number);
-        return ageInMonths >= start && ageInMonths <= end;
-      });
+    // ✅ ดึงรายละเอียดของ assessment_details
+    for (let i = 0; i < assessments.length; i++) {
+      const [details] = await pool.query(
+        `SELECT * FROM ${tableName} WHERE assessment_details_id = ?`,
+        [assessments[i].assessment_details_id]
+      );
+      assessments[i].details = details.length > 0 ? details[0] : null;
+    }
 
-      if (!defaultAssessment) {
-        return res
-          .status(404)
-          .json({ error: "ไม่พบข้อมูลการประเมินสำหรับด้านที่ระบุ" });
-      }
-
-      const insertQuery = `
-        INSERT INTO assessment_supervisor (child_id, assessment_rank, aspect, status, supervisor_id, assessment_details_id)
-        VALUES (?, ?, ?, 'in_progress', ?, ?)
-      `;
-      const [result] = await pool.query(insertQuery, [
+    return res.status(200).json({
+      message:
+        "ดึงข้อมูลการประเมินของเด็กที่อยู่ในสถานะ 'in_progress', 'passed_all', หรือ 'not_passed' สำเร็จ",
+      supervisor_id,
+      child: {
         child_id,
-        defaultAssessment.assessment_rank,
-        aspect,
-        supervisor_id,
-        defaultAssessment.assessment_details_id,
-      ]);
-
-      const assessmentDetailsQuery = `
-        SELECT * FROM ${tableName}
-        WHERE assessment_rank = ? AND aspect = ?
-      `;
-      const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
-        defaultAssessment.assessment_rank,
-        aspect,
-      ]);
-
-      return res.status(201).json({
-        message: "เริ่มต้นการประเมินใหม่",
-        data: {
-          supervisor_assessment_id: result.insertId,
-          child_id,
-          assessment_rank: defaultAssessment.assessment_rank,
-          aspect: defaultAssessment.aspect,
-          assessment_name: defaultAssessment.assessment_name,
-          status: "in_progress",
-          assessment_date: new Date().toISOString(),
-          details: assessmentDetails[0],
-        },
-      });
-    }
-
-    // ✅ กรณีมี `in_progress` → คืนค่าการประเมินปัจจุบัน
-    const inProgressAssessments = rows.filter(
-      (row) => row.status === "in_progress"
-    );
-
-    if (inProgressAssessments.length > 0) {
-      const inProgressAssessment = inProgressAssessments
-        .sort((a, b) => a.assessment_rank - b.assessment_rank)
-        .pop();
-
-      const assessmentDetailsQuery = `
-        SELECT * FROM ${tableName}
-        WHERE assessment_rank = ? AND aspect = ?
-      `;
-      const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
-        inProgressAssessment.assessment_rank,
-        aspect,
-      ]);
-
-      return res.status(200).json({
-        message: "กำลังดำเนินการประเมิน",
-        data: {
-          assessment_id: inProgressAssessment.supervisor_assessment_id,
-          assessment_date: inProgressAssessment.assessment_date,
-          ...inProgressAssessment,
-          details: assessmentDetails[0],
-        },
-      });
-    }
-
-    // ✅ กรณีมี `passed_all` → ส่ง `assessmentDetails: null`
-    const passedAllAssessments = rows.filter(
-      (row) => row.status === "passed_all"
-    );
-
-    if (passedAllAssessments.length > 0) {
-      return res.status(200).json({
-        message: "การประเมินเสร็จสมบูรณ์สำหรับ aspect นี้",
-        data: {
-          assessment_id: null,
-          child_id,
-          aspect,
-          assessment_rank: null,
-          assessment_name: null,
-          status: "passed_all",
-          assessment_date: null,
-          details: null,
-        },
-      });
-    }
-
-    return res.status(404).json({
-      message: "ไม่พบการประเมินที่อยู่ในสถานะ 'in_progress' หรือ 'passed_all'",
+        assessments,
+      },
     });
   } catch (error) {
-    console.error(error);
-    return res
-      .status(500)
-      .json({ error: "เกิดข้อผิดพลาดในการดึงข้อมูลการประเมิน" });
+    console.error("Error fetching supervisor assessments:", error);
+    return res.status(500).json({
+      message: "เกิดข้อผิดพลาดในการดึงข้อมูลการประเมินสำหรับ Supervisor",
+    });
   }
 };
 
 const updateSupervisorAssessment = async (req, res) => {
-  const { supervisor_assessment_id } = req.body;
-  const { child_id, aspect } = req.params;
+  const { supervisor_assessment_id } = req.params;
 
+  if (!supervisor_assessment_id) {
+    return res
+      .status(400)
+      .json({ message: "supervisor_assessment_id is required" });
+  }
+
+  let connection;
   try {
-    const updateQuery = `
-      UPDATE assessment_supervisor
-      SET status = 'not_passed'
-      WHERE supervisor_assessment_id = ? AND status = 'in_progress'`;
+    connection = await pool.getConnection();
 
-    const [updateResult] = await pool.query(updateQuery, [
+    // ✅ อัปเดตสถานะเป็น `not_passed`
+    const updateQuery = `
+      UPDATE assessment_supervisor 
+      SET status = 'not_passed' 
+      WHERE supervisor_assessment_id = ?`;
+
+    const [updateResult] = await connection.execute(updateQuery, [
       supervisor_assessment_id,
     ]);
 
+    connection.release();
+
     if (updateResult.affectedRows === 0) {
-      return res.status(404).json({
-        message: "Supervisor assessment not found or already completed",
-      });
+      return res
+        .status(404)
+        .json({ message: "ไม่พบการประเมิน หรืออัปเดตไม่สำเร็จ" });
     }
 
     return res.status(200).json({
-      message: "Supervisor assessment updated to 'not_passed' successfully",
-      updated_assessment_id: supervisor_assessment_id,
+      message: "อัปเดตสถานะเป็น 'not_passed' สำเร็จ",
+      supervisor_assessment_id,
     });
   } catch (error) {
-    console.error(error);
-    res
+    console.error("Error updating supervisor assessment:", error);
+    return res
       .status(500)
-      .json({ error: "Failed to update supervisor assessment status" });
+      .json({ message: "เกิดข้อผิดพลาดในการอัปเดตการประเมิน" });
+  } finally {
+    if (connection) connection.release();
   }
 };
 
@@ -724,6 +614,82 @@ const getSupervisorAssessmentsAllData = async (req, res) => {
   }
 };
 
+// Get Assessment Last For a Child for Supervisor
+const getAssessmentsByChildForSupervisor = async (req, res) => {
+  const { supervisor_id, child_id } = req.params;
+
+  if (!supervisor_id || !child_id) {
+    return res
+      .status(400)
+      .json({ message: "supervisor_id and child_id required" });
+  }
+
+  let connection;
+  try {
+    connection = await pool.getConnection();
+
+    // ✅ ดึงข้อมูลเด็กที่ Supervisor ดูแล
+    const [childRows] = await connection.execute(
+      `SELECT * FROM children 
+       JOIN supervisor_children ON children.child_id = supervisor_children.child_id 
+       WHERE children.child_id = ? AND supervisor_children.supervisor_id = ?`,
+      [child_id, supervisor_id]
+    );
+
+    if (childRows.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "ไม่พบข้อมูลเด็กสำหรับ supervisor" });
+    }
+
+    // ✅ ดึงการประเมินล่าสุดของแต่ละ `aspect`
+    const [assessments] = await connection.execute(
+      `SELECT a.supervisor_assessment_id AS assessment_id, 
+              a.assessment_rank, a.aspect, 
+              a.assessment_details_id, a.assessment_date, a.status 
+       FROM assessment_supervisor a 
+       WHERE a.child_id = ? AND a.supervisor_id = ?
+             AND (a.assessment_rank = (
+               SELECT MAX(assessment_rank) 
+               FROM assessment_supervisor 
+               WHERE child_id = a.child_id AND aspect = a.aspect
+             ))
+       ORDER BY a.aspect ASC, a.assessment_rank DESC`,
+      [child_id, supervisor_id]
+    );
+
+    // ✅ ดึงรายละเอียดของ assessment_details
+    for (let i = 0; i < assessments.length; i++) {
+      const [details] = await connection.execute(
+        `SELECT * FROM assessment_details WHERE assessment_details_id = ?`,
+        [assessments[i].assessment_details_id]
+      );
+      assessments[i].details = details.length > 0 ? details[0] : null;
+    }
+
+    connection.release();
+
+    return res.status(200).json({
+      message: "ดึงข้อมูลการประเมินล่าสุดของเด็กแต่ละด้านสำเร็จ",
+      supervisor_id,
+      child: {
+        ...childRows[0],
+        assessments,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Error fetching latest child assessment data for supervisor:",
+      error
+    );
+    return res.status(500).json({
+      message: "เกิดข้อผิดพลาดในการดึงข้อมูลการประเมินสำหรับ Supervisor",
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
 module.exports = {
   getAssessmentsByAspect,
   getAssessmentsByChild,
@@ -734,4 +700,5 @@ module.exports = {
   fetchNextAssessmentSupervisor,
   getSupervisorAssessmentsAllData,
   getAssessmentsAllChild,
+  getAssessmentsByChildForSupervisor,
 };

@@ -58,4 +58,7 @@ router.get(
   assessmentController.getSupervisorAssessmentsAllData
 );
 
+// Route to getAssessmentsByChildForSupervisor
+router.get("/assessments-child-supervisor/:parent_id/:child_id");
+
 module.exports = router;

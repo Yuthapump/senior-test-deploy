@@ -266,6 +266,55 @@ const deleteChild = async (req, res) => {
   }
 };
 
+const deleteChildForSupervisor = async (req, res) => {
+  const { supervisor_id, child_id } = req.params;
+
+  if (!supervisor_id || !child_id) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Missing supervisor_id or child_id" });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction(); // 🔥 เริ่ม Transaction
+
+    // 🔥 ลบเด็กออกจาก `room_children`
+    await connection.execute(
+      "DELETE FROM room_children WHERE child_id = ? AND room_id IN (SELECT room_id FROM rooms WHERE supervisor_id = ?)",
+      [child_id, supervisor_id]
+    );
+
+    // 🔥 ลบการประเมินของเด็กที่เกี่ยวข้องกับ Supervisor
+    await connection.execute(
+      "DELETE FROM assessment_supervisor WHERE child_id = ? AND supervisor_id = ?",
+      [child_id, supervisor_id]
+    );
+
+    // 🔥 ลบความสัมพันธ์เด็กออกจาก `supervisor_children`
+    await connection.execute(
+      "DELETE FROM supervisor_children WHERE child_id = ? AND supervisor_id = ?",
+      [child_id, supervisor_id]
+    );
+
+    await connection.commit(); // ✅ ยืนยันการลบทั้งหมด
+    connection.release();
+
+    res.status(200).json({
+      success: true,
+      message: "Child removed from supervisor successfully",
+    });
+  } catch (error) {
+    await connection.rollback(); // ❌ ยกเลิกการลบถ้ามีปัญหา
+    connection.release();
+    console.error("Error deleting child for supervisor:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to remove child for supervisor",
+    });
+  }
+};
+
 module.exports = {
   updateUserProfile,
   getProfilePic,
@@ -273,4 +322,5 @@ module.exports = {
   upload,
   deleteUserAccount,
   deleteChild,
+  deleteChildForSupervisor,
 };
