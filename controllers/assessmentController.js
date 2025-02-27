@@ -424,7 +424,7 @@ const getAssessmentsForSupervisor = async (req, res) => {
 
     // ✅ ค้นหาการประเมินล่าสุดของเด็กใน aspect นี้
     const query = `
-      SELECT a.supervisor_assessment_id AS assessment_id, a.assessment_date, ad.assessment_rank, a.status
+      SELECT a.supervisor_assessment_id, a.assessment_date, ad.assessment_rank, a.status
       FROM assessment_supervisor a
       JOIN ${tableName} ad ON a.assessment_details_id = ad.assessment_details_id
       WHERE a.child_id = ? AND ad.aspect = ?
