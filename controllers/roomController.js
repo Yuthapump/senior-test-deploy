@@ -312,7 +312,7 @@ const updateRoomProfile = async (req, res) => {
 const deleteRoom = async (req, res) => {
   let connection;
   try {
-    const { rooms_id, supervisor_id } = req.body;
+    const { rooms_id, supervisor_id } = req.params;
 
     if (!rooms_id || !supervisor_id) {
       return res

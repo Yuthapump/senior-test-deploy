@@ -21,7 +21,7 @@ router.get("/get-all-data", getAllData);
 
 router.get("/get-child-data-of-room", getChildDataOfRoom);
 
-router.delete("/delete-room", deleteRoom);
+router.delete("/delete-room/:rooms_id/:supervisor_id", deleteRoom);
 
 router.delete("/remove-child-from-room", removeChildFromRoom);
 
