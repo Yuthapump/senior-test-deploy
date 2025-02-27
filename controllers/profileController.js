@@ -127,16 +127,16 @@ const updateProfileChild = async (req, res) => {
 
   let connection;
   try {
-    connection = await pool.getConnection(); // 🔥 เรียก connection อย่างถูกต้อง
-    await connection.beginTransaction(); // 🔥 เริ่ม Transaction
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
 
-    // 🔍 ดึง childPic เดิมก่อนอัปเดต
-    const [oldChildPicRows] = await connection.execute(
-      "SELECT childPic FROM children WHERE child_id = ?",
+    // ดึงวันเกิดปัจจุบันของเด็ก
+    const [oldChildData] = await connection.execute(
+      "SELECT birthday FROM children WHERE child_id = ?",
       [child_id]
     );
 
-    if (oldChildPicRows.length === 0) {
+    if (oldChildData.length === 0) {
       await connection.rollback();
       connection.release();
       return res
@@ -144,9 +144,16 @@ const updateProfileChild = async (req, res) => {
         .json({ success: false, message: "Child not found" });
     }
 
-    const oldChildPic = oldChildPicRows[0].childPic;
+    const oldBirthday = oldChildData[0].birthday;
 
-    // 🔄 อัปเดตข้อมูลเด็ก
+    // ถ้ามีการเปลี่ยนแปลงวันเกิด ให้ลบข้อมูลการประเมินที่เกี่ยวข้อง
+    if (birthday && oldBirthday !== birthday) {
+      await connection.execute("DELETE FROM assessments WHERE child_id = ?", [
+        child_id,
+      ]);
+    }
+
+    // อัปเดตข้อมูลเด็ก
     await connection.execute(
       `UPDATE children 
        SET firstName = COALESCE(?, firstName), 
@@ -162,20 +169,22 @@ const updateProfileChild = async (req, res) => {
         nickName || null,
         birthday || null,
         gender || null,
-        newChildPic || oldChildPic,
+        newChildPic || null,
         child_id,
       ]
     );
 
-    await connection.commit(); // ✅ ยืนยันการอัปเดต
-    connection.release(); // ✅ ปล่อย Connection
+    await connection.commit();
+    connection.release();
 
-    res
-      .status(200)
-      .json({ success: true, message: "Child profile updated successfully" });
+    res.status(200).json({
+      success: true,
+      message:
+        "Child profile updated successfully, assessments reset if needed",
+    });
   } catch (error) {
     if (connection) {
-      await connection.rollback(); // ❌ ยกเลิกการเปลี่ยนแปลงถ้ามีข้อผิดพลาด
+      await connection.rollback();
       connection.release();
     }
     console.error("Error updating child profile:", error);
