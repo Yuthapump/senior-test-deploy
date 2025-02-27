@@ -402,200 +402,62 @@ const addChildForSupervisor = async (req, res) => {
 const getChildData = async (req, res) => {
   let connection;
   try {
-    const { parent_id, supervisor_id } = req.query;
+    const { parent_id } = req.query; // รับเฉพาะ parent_id
 
     connection = await pool.getConnection();
 
-    // ตรวจสอบว่า parent_id หรือ supervisor_id ถูกระบุ
-    if (!parent_id && !supervisor_id) {
-      return res
-        .status(400)
-        .json({ message: "parent_id or supervisor_id is required" });
+    // ตรวจสอบว่ามี parent_id หรือไม่
+    if (!parent_id) {
+      return res.status(400).json({ message: "parent_id is required" });
     }
 
-    let query;
-    const params = [];
+    // ดึงข้อมูลเด็กที่เป็นลูกของ parent
+    const query = `
+      SELECT c.* 
+      FROM children c 
+      JOIN parent_children pc ON c.child_id = pc.child_id 
+      WHERE pc.parent_id = ?
+    `;
+    const [children] = await connection.execute(query, [parent_id]);
 
-    // ถ้าระบุ parent_id
-    if (parent_id) {
-      query =
-        "SELECT c.* FROM children c JOIN parent_children pc ON c.child_id = pc.child_id WHERE pc.parent_id = ?";
-      params.push(parent_id);
+    if (children.length === 0) {
+      return res.status(200).json({
+        message: "ยังไม่มีข้อมูลเด็กในระบบ",
+        children: [],
+      });
+    }
 
-      const [children] = await connection.execute(query, params);
-
-      if (children.length === 0) {
-        return res.status(200).json({
-          message: "ยังไม่มีข้อมูลเด็กในระบบ",
-          children: [],
-        });
-      }
-
-      // ดึงข้อมูลการประเมินที่อยู่ในสถานะ 'in_progress'
-      const childDataWithAssessmentsForParent = await Promise.all(
-        children.map(async (child) => {
-          const assessmentQuery = `
-          SELECT
-            a.assessment_id,
-            a.assessment_rank,
-            a.aspect,
-            a.assessment_details_id,
-            a.assessment_date,
-            ad.assessment_name,
-            ad.age_range,
-            ad.assessment_method,
-            ad.assessment_succession,
-            ad.training_method,
-            ad.training_device_name,
-            ad.training_device_image
+    // ดึงข้อมูลการประเมินของเด็กแต่ละคน
+    const childDataWithAssessments = await Promise.all(
+      children.map(async (child) => {
+        const assessmentQuery = `
+          SELECT 
+            a.assessment_id, 
+            a.assessment_rank, 
+            a.aspect, 
+            a.assessment_details_id, 
+            a.assessment_date, 
+            a.status,
+            ad.assessment_name, 
+            ad.age_range, 
+            ad.assessment_method
           FROM assessments a
           JOIN assessment_details ad ON a.assessment_details_id = ad.assessment_details_id
-          WHERE a.child_id = ? AND a.status = 'in_progress'
+          WHERE a.child_id = ? AND (a.status = 'in_progress' OR a.status = 'passed_all')
         `;
-          const [assessmentRows] = await connection.execute(assessmentQuery, [
-            child.child_id,
-          ]);
+        const [assessmentRows] = await connection.execute(assessmentQuery, [
+          child.child_id,
+        ]);
 
-          return {
-            ...child,
-            assessments: assessmentRows,
-          };
-        })
-      );
+        return { ...child, assessments: assessmentRows };
+      })
+    );
 
-      return res.status(200).json({
-        message: "ดึงข้อมูลเด็ก 'in_progress' สำหรับผู้ปกครองสำเร็จ",
-        parent_id,
-        children: childDataWithAssessmentsForParent,
-      });
-    }
-
-    // ถ้าระบุ supervisor_id
-    if (supervisor_id) {
-      // ดึงข้อมูลเด็ก
-      query =
-        "SELECT c.* FROM children c JOIN supervisor_children sc ON c.child_id = sc.child_id WHERE sc.supervisor_id = ?";
-      params.push(supervisor_id);
-
-      const [children] = await connection.execute(query, params);
-
-      // ดึงข้อมูล rooms สำหรับ supervisor_id ที่ระบุ
-      const roomsQuery = `
-    SELECT 
-      rooms_id,
-      rooms_name,
-      rooms_pic,
-      created_at 
-    FROM rooms 
-    WHERE supervisor_id = ?
-  `;
-      const [rooms] = await connection.execute(roomsQuery, [supervisor_id]);
-
-      // กรณีที่ไม่มีข้อมูลเด็กและห้อง
-      if (children.length === 0 && rooms.length === 0) {
-        return res.status(200).json({
-          message: "ผู้ดูแลเพิ่งเริ่มต้นใช้งาน ไม่มีข้อมูลเด็กและห้องในระบบ",
-          children: [],
-          rooms: [],
-        });
-      }
-
-      if (children.length === 0) {
-        // ถ้าไม่มีเด็กในระบบสำหรับผู้ดูแล
-        const roomsWithChildren = await Promise.all(
-          rooms.map(async (room) => {
-            const roomChildrenQuery = `
-          SELECT c.child_id, c.childName, c.nickname, c.birthday, c.gender, c.childPic
-          FROM rooms_children rc
-          JOIN children c ON rc.child_id = c.child_id
-          WHERE rc.rooms_id = ?
-        `;
-            const [roomChildren] = await connection.execute(roomChildrenQuery, [
-              room.rooms_id,
-            ]);
-
-            return {
-              ...room,
-              children: roomChildren,
-            };
-          })
-        );
-
-        if (roomsWithChildren.length === 0) {
-          return res.status(200).json({
-            message: "ยังไม่มีข้อมูลห้องสำหรับผู้ดูแล",
-            children: [],
-            rooms: [],
-          });
-        }
-
-        return res.status(200).json({
-          message: "ยังไม่มีข้อมูลเด็กในระบบสำหรับผู้ดูแล",
-          children: [],
-          rooms: roomsWithChildren,
-        });
-      }
-
-      // ดึงข้อมูลการประเมินที่อยู่ในสถานะ 'in_progress' และ 'passed'
-      const childDataWithAssessmentsForSupervisor = await Promise.all(
-        children.map(async (child) => {
-          const assessmentQuery = `
-        SELECT
-          a.assessment_id,
-          a.assessment_rank,
-          a.aspect,
-          a.assessment_details_id,
-          a.assessment_date,
-          a.status,
-          ad.assessment_name,
-          ad.age_range,
-          ad.assessment_method,
-          ad.assessment_succession,
-          ad.training_method,
-          ad.training_device_name,
-          ad.training_device_image
-        FROM assessments a
-        JOIN assessment_details ad ON a.assessment_details_id = ad.assessment_details_id
-        WHERE a.child_id = ? AND (a.status = 'in_progress' OR a.status = 'passed') 
-      `;
-          const [assessmentRows] = await connection.execute(assessmentQuery, [
-            child.child_id,
-          ]);
-
-          return {
-            ...child,
-            assessments: assessmentRows,
-          };
-        })
-      );
-
-      // ดึงข้อมูลเด็กในแต่ละห้อง
-      const roomsWithChildren = await Promise.all(
-        rooms.map(async (room) => {
-          const roomChildrenQuery = `
-        SELECT c.child_id, c.childName, c.nickname, c.birthday, c.gender, c.childPic
-        FROM rooms_children rc
-        JOIN children c ON rc.child_id = c.child_id
-        WHERE rc.rooms_id = ?
-      `;
-          const [roomChildren] = await connection.execute(roomChildrenQuery, [
-            room.rooms_id,
-          ]);
-
-          return {
-            ...room,
-            children: roomChildren,
-          };
-        })
-      );
-
-      return res.status(200).json({
-        message: "ดึงข้อมูลเด็กสำหรับผู้ดูแลสำเร็จ",
-        supervisor_id,
-        children: childDataWithAssessmentsForSupervisor,
-        rooms: roomsWithChildren,
-      });
-    }
+    return res.status(200).json({
+      message: "ดึงข้อมูลเด็กสำหรับผู้ปกครองสำเร็จ",
+      parent_id,
+      children: childDataWithAssessments,
+    });
   } catch (error) {
     console.error("Error fetching child data and assessments:", error);
     return res.status(500).json({
