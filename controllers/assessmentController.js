@@ -633,69 +633,87 @@ const fetchNextAssessmentSupervisor = async (req, res) => {
   const { child_id, aspect } = req.params;
 
   try {
+    // ✅ อัปเดตการประเมินปัจจุบันเป็น 'passed'
     const updateQuery = `
       UPDATE assessment_supervisor
       SET status = 'passed'
       WHERE supervisor_assessment_id = ? AND status = 'in_progress'
     `;
-
     const [updateResult] = await pool.query(updateQuery, [
       supervisor_assessment_id,
     ]);
 
     if (updateResult.affectedRows === 0) {
       return res.status(404).json({
-        message: "ไม่พบการประเมินหรืออัปเดตสถานะไม่สำเร็จ",
+        message: "ไม่พบการประเมินหรือเสร็จสิ้นแล้ว",
       });
     }
 
-    // ✅ ค้นหาข้อมูลปัจจุบันของการประเมิน
-    const getCurrentAssessmentQuery = `
-      SELECT assessment_rank
+    // ✅ ค้นหา assessment_details_id ปัจจุบัน
+    const getAssessmentDetailsIdQuery = `
+      SELECT assessment_details_id 
       FROM assessment_supervisor 
       WHERE supervisor_assessment_id = ?
     `;
-    const [currentAssessment] = await pool.query(getCurrentAssessmentQuery, [
-      supervisor_assessment_id,
-    ]);
+    const [assessmentDetailsIdResult] = await pool.query(
+      getAssessmentDetailsIdQuery,
+      [supervisor_assessment_id]
+    );
 
-    if (currentAssessment.length === 0) {
-      return res.status(404).json({ message: "ไม่พบข้อมูลการประเมินปัจจุบัน" });
+    if (!assessmentDetailsIdResult.length) {
+      return res.status(404).json({
+        message: "ไม่พบ assessment_details_id สำหรับ assessment นี้",
+      });
     }
 
-    const { assessment_rank } = currentAssessment[0];
+    const assessmentDetailsId =
+      assessmentDetailsIdResult[0].assessment_details_id;
+
+    // ✅ ค้นหา assessment_rank ปัจจุบัน
+    const rankQuery = `
+      SELECT assessment_rank 
+      FROM assessment_details 
+      WHERE assessment_details_id = ?
+    `;
+    const [rankResult] = await pool.query(rankQuery, [assessmentDetailsId]);
+
+    if (!rankResult.length) {
+      return res.status(404).json({ message: "ไม่พบรายละเอียดการประเมิน" });
+    }
+
+    const assessmentRank = rankResult[0].assessment_rank;
 
     // ✅ ค้นหา assessment ถัดไป
     const nextAssessmentQuery = `
-      SELECT assessment_details_id, aspect, assessment_rank, assessment_name
-      FROM assessment_details
-      WHERE assessment_rank > ? AND aspect = ?
-      ORDER BY assessment_rank ASC
+      SELECT ad.assessment_details_id AS assessment_detail_id, ad.aspect, ad.assessment_rank, ad.assessment_name
+      FROM assessment_details ad
+      WHERE ad.assessment_rank > ? AND ad.aspect = ?
+      ORDER BY ad.assessment_rank ASC
       LIMIT 1
     `;
-
     const [nextAssessment] = await pool.query(nextAssessmentQuery, [
-      assessment_rank,
+      assessmentRank,
       aspect,
     ]);
 
     if (nextAssessment.length > 0) {
       // ✅ สร้าง assessment ถัดไปเป็น `in_progress`
       const insertQuery = `
-        INSERT INTO assessment_supervisor (child_id, assessment_rank, aspect, status, supervisor_id, assessment_details_id)
-        VALUES (?, ?, ?, 'in_progress', ?, ?)
+        INSERT INTO assessment_supervisor (child_id, assessment_details_id, assessment_rank, aspect, status, supervisor_id)
+        VALUES (?, ?, ?, ?, 'in_progress', ?)
       `;
       const [result] = await pool.query(insertQuery, [
         child_id,
+        nextAssessment[0].assessment_detail_id,
         nextAssessment[0].assessment_rank,
         aspect,
         supervisor_id,
-        nextAssessment[0].assessment_details_id,
       ]);
 
       // ✅ ดึงรายละเอียดของ assessment ใหม่
       const assessmentDetailsQuery = `
-        SELECT * FROM assessment_details WHERE assessment_rank = ? AND aspect = ?
+        SELECT * FROM assessment_details
+        WHERE assessment_rank = ? AND aspect = ?
       `;
       const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
         nextAssessment[0].assessment_rank,
@@ -723,7 +741,6 @@ const fetchNextAssessmentSupervisor = async (req, res) => {
         SET status = 'passed_all'
         WHERE supervisor_assessment_id = ?
       `;
-
       await pool.query(updateLastAssessmentQuery, [supervisor_assessment_id]);
 
       return res.status(200).json({
@@ -738,7 +755,7 @@ const fetchNextAssessmentSupervisor = async (req, res) => {
           assessment_name: null,
           status: "passed_all",
           assessment_date: null,
-          details: null, // ✅ ส่ง `null`
+          details: null,
         },
       });
     }
