@@ -179,13 +179,13 @@ const sendAssessmentReminder = async () => {
   try {
     connection = await pool.getConnection();
 
-    // Logic to send assessment reminders per 2 weeks
+    // ดึงเฉพาะการประเมินล่าสุดของเด็กแต่ละคน
     const [childrenToNotify] = await connection.execute(`
       SELECT 
         c.child_id,
         c.firstName,
         c.lastName,
-        a.assessment_date,
+        MAX(a.assessment_date) AS last_assessment_date,
         a.user_id, 
         u.userName AS last_evaluator_name, 
         et.expo_push_token
@@ -193,8 +193,9 @@ const sendAssessmentReminder = async () => {
       JOIN assessments a ON c.child_id = a.child_id
       JOIN users u ON a.user_id = u.user_id 
       JOIN expo_tokens et ON a.user_id = et.user_id 
-      WHERE a.assessment_date <= NOW() - INTERVAL 5 MINUTE
-      ORDER BY a.assessment_date DESC; 
+      WHERE a.assessment_date <= NOW() - INTERVAL 2 WEEK
+      GROUP BY c.child_id, a.user_id, u.userName, et.expo_push_token
+      ORDER BY last_assessment_date DESC; 
     `);
 
     if (childrenToNotify.length === 0) {
