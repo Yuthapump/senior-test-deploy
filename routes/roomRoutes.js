@@ -8,7 +8,7 @@ const {
   getAllData,
   getChildDataOfRoom,
   deleteRoom,
-  removeChildFromRoom,
+  // removeChildFromRoom,
   upload,
   updateRoomProfile,
 } = require("../controllers/roomController");

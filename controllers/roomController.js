@@ -431,7 +431,7 @@ module.exports = {
   getAllData,
   getChildDataOfRoom,
   deleteRoom,
-  removeChildFromRoom,
+  // removeChildFromRoom,
   updateRoomProfile,
   upload,
 };
