@@ -266,7 +266,7 @@ const updateRoomProfile = async (req, res) => {
 
     connection = await pool.getConnection();
 
-    // ตรวจสอบว่าห้องเป็นของ Supervisor ที่ร้องขอหรือไม่
+    // ✅ ตรวจสอบว่าห้องเป็นของ Supervisor ที่ร้องขอหรือไม่
     const [room] = await connection.execute(
       `SELECT roomsPic FROM rooms WHERE rooms_id = ? AND supervisor_id = ?`,
       [rooms_id, supervisor_id]
@@ -278,18 +278,28 @@ const updateRoomProfile = async (req, res) => {
         .json({ message: "You do not have permission to update this room" });
     }
 
-    // ลบรูปภาพเก่าหากมีการอัปโหลดรูปใหม่
+    // ✅ ถ้ามีรูปใหม่ และมีรูปเก่าอยู่ → ลบรูปเก่าออก
     if (roomsPic && room[0].roomsPic) {
-      try {
-        fs.unlinkSync(room[0].roomsPic); // ลบไฟล์รูปเดิมออกจากเซิร์ฟเวอร์
-      } catch (error) {
-        console.error("Error deleting old room image:", error);
+      const oldImagePath = room[0].roomsPic;
+
+      // เช็คว่าไฟล์มีอยู่จริงก่อนลบ
+      if (fs.existsSync(oldImagePath)) {
+        try {
+          fs.unlinkSync(oldImagePath); // ลบไฟล์รูปเดิมออกจากเซิร์ฟเวอร์
+          console.log(`Deleted old image: ${oldImagePath}`);
+        } catch (error) {
+          console.error("Error deleting old room image:", error);
+        }
+      } else {
+        console.warn(`Old image not found, skipping deletion: ${oldImagePath}`);
       }
     }
 
-    // อัปเดตชื่อห้องและรูปภาพใหม่ (ถ้ามี)
+    // ✅ อัปเดตชื่อห้องและรูปภาพใหม่ (ถ้ามี)
     await connection.execute(
-      `UPDATE rooms SET rooms_name = ?, roomsPic = COALESCE(?, roomsPic) WHERE rooms_id = ? AND supervisor_id = ?`,
+      `UPDATE rooms 
+       SET rooms_name = ?, roomsPic = COALESCE(?, roomsPic) 
+       WHERE rooms_id = ? AND supervisor_id = ?`,
       [rooms_name, roomsPic, rooms_id, supervisor_id]
     );
 
