@@ -704,7 +704,7 @@ const fetchNextAssessmentSupervisor = async (req, res) => {
       return res.status(201).json({
         message: "สร้างและโหลดการประเมินถัดไปสำเร็จ",
         next_assessment: {
-          assessment_id: result.insertId,
+          supervisor_assessment_id: result.insertId,
           child_id,
           supervisor_id,
           assessment_rank: nextAssessment[0].assessment_rank,
@@ -729,7 +729,7 @@ const fetchNextAssessmentSupervisor = async (req, res) => {
         message:
           "ผ่านการประเมินและไม่มีการประเมินเพิ่มเติมสำหรับ aspect นี้ (passed_all)",
         next_assessment: {
-          assessment_id: null,
+          supervisor_assessment_id: null,
           child_id,
           supervisor_id,
           assessment_rank: null,
