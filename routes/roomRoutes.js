@@ -10,6 +10,7 @@ const {
   deleteRoom,
   removeChildFromRoom,
   upload,
+  updateRoomProfile,
 } = require("../controllers/roomController");
 
 // Route AddRoom
@@ -28,7 +29,7 @@ router.delete("/remove-child-from-room", removeChildFromRoom);
 router.put(
   "/update-room/:rooms_id/:supervisor_id",
   upload.single("roomsPic"),
-  addRooms
+  updateRoomProfile
 );
 
 module.exports = router;
