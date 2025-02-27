@@ -258,7 +258,7 @@ const updateRoomProfile = async (req, res) => {
     console.log("RoomData Data: ", req.body);
     console.log("RoomId Data: ", req.params);
 
-    if (!rooms_id || !supervisor_id || !rooms_name) {
+    if (!rooms_id || !supervisor_id) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
@@ -282,7 +282,6 @@ const updateRoomProfile = async (req, res) => {
     if (roomsPic && room[0].roomsPic) {
       const oldImagePath = room[0].roomsPic;
 
-      // เช็คว่าไฟล์มีอยู่จริงก่อนลบ
       if (fs.existsSync(oldImagePath)) {
         try {
           fs.unlinkSync(oldImagePath); // ลบไฟล์รูปเดิมออกจากเซิร์ฟเวอร์
@@ -295,22 +294,35 @@ const updateRoomProfile = async (req, res) => {
       }
     }
 
-    // ✅ อัปเดตชื่อห้องและรูปภาพใหม่ (ถ้ามี)
-    await connection.execute(
-      `UPDATE rooms 
-       SET rooms_name = ?, roomsPic = COALESCE(?, roomsPic) 
-       WHERE rooms_id = ? AND supervisor_id = ?`,
-      [rooms_name, roomsPic, rooms_id, supervisor_id]
-    );
+    // ✅ ตรวจสอบว่าผู้ใช้ส่งค่าชื่อห้องหรือไม่
+    let updateQuery = `UPDATE rooms SET `;
+    let queryParams = [];
 
+    if (rooms_name) {
+      updateQuery += `rooms_name = ?, `;
+      queryParams.push(rooms_name);
+    }
+
+    if (roomsPic) {
+      updateQuery += `roomsPic = ?, `;
+      queryParams.push(roomsPic);
+    }
+
+    // ลบ `, ` สุดท้ายออก
+    updateQuery = updateQuery.replace(/,\s*$/, "");
+    updateQuery += ` WHERE rooms_id = ? AND supervisor_id = ?`;
+    queryParams.push(rooms_id, supervisor_id);
+
+    // ✅ ดำเนินการอัปเดต
+    await connection.execute(updateQuery, queryParams);
     connection.release();
 
     return res.status(200).json({
       message: "Room profile updated successfully",
       updatedData: {
         rooms_id,
-        rooms_name,
-        roomsPic,
+        rooms_name: rooms_name || room[0].rooms_name,
+        roomsPic: roomsPic || room[0].roomsPic,
       },
     });
   } catch (error) {
@@ -367,51 +379,51 @@ const deleteRoom = async (req, res) => {
 };
 
 // Delete child from room
-const removeChildFromRoom = async (req, res) => {
-  let connection;
-  try {
-    const { rooms_id, child_id, supervisor_id } = req.body;
+// const removeChildFromRoom = async (req, res) => {
+//   let connection;
+//   try {
+//     const { rooms_id, child_id, supervisor_id } = req.body;
 
-    if (!rooms_id || !child_id || !supervisor_id) {
-      return res.status(400).json({
-        message: "rooms_id, child_id, and supervisor_id are required",
-      });
-    }
+//     if (!rooms_id || !child_id || !supervisor_id) {
+//       return res.status(400).json({
+//         message: "rooms_id, child_id, and supervisor_id are required",
+//       });
+//     }
 
-    connection = await pool.getConnection();
+//     connection = await pool.getConnection();
 
-    // ตรวจสอบว่า supervisor เป็นเจ้าของห้องนี้หรือไม่
-    const [room] = await connection.execute(
-      `SELECT * FROM rooms WHERE rooms_id = ? AND supervisor_id = ?`,
-      [rooms_id, supervisor_id]
-    );
+//     // ตรวจสอบว่า supervisor เป็นเจ้าของห้องนี้หรือไม่
+//     const [room] = await connection.execute(
+//       `SELECT * FROM rooms WHERE rooms_id = ? AND supervisor_id = ?`,
+//       [rooms_id, supervisor_id]
+//     );
 
-    if (room.length === 0) {
-      return res.status(403).json({
-        message: "You do not have permission to remove children from this room",
-      });
-    }
+//     if (room.length === 0) {
+//       return res.status(403).json({
+//         message: "You do not have permission to remove children from this room",
+//       });
+//     }
 
-    // ลบเด็กออกจากห้อง
-    const [result] = await connection.execute(
-      `DELETE FROM rooms_children WHERE rooms_id = ? AND child_id = ?`,
-      [rooms_id, child_id]
-    );
+//     // ลบเด็กออกจากห้อง
+//     const [result] = await connection.execute(
+//       `DELETE FROM rooms_children WHERE rooms_id = ? AND child_id = ?`,
+//       [rooms_id, child_id]
+//     );
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Child not found in this room" });
-    }
+//     if (result.affectedRows === 0) {
+//       return res.status(404).json({ message: "Child not found in this room" });
+//     }
 
-    return res
-      .status(200)
-      .json({ message: "Child removed from room successfully" });
-  } catch (error) {
-    console.error("Error removing child from room:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  } finally {
-    if (connection) connection.release();
-  }
-};
+//     return res
+//       .status(200)
+//       .json({ message: "Child removed from room successfully" });
+//   } catch (error) {
+//     console.error("Error removing child from room:", error);
+//     return res.status(500).json({ message: "Internal server error" });
+//   } finally {
+//     if (connection) connection.release();
+//   }
+// };
 
 module.exports = {
   addRooms,
