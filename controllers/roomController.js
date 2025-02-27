@@ -249,6 +249,65 @@ const getChildDataOfRoom = async (req, res) => {
   }
 };
 
+const updateRoomProfile = async (req, res) => {
+  let connection;
+  try {
+    const { rooms_name } = req.body;
+    const { rooms_id, supervisor_id } = req.params;
+
+    if (!rooms_id || !supervisor_id || !rooms_name) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const roomsPic = req.file ? path.normalize(req.file.path) : null;
+
+    connection = await pool.getConnection();
+
+    // ตรวจสอบว่าห้องเป็นของ Supervisor ที่ร้องขอหรือไม่
+    const [room] = await connection.execute(
+      `SELECT roomsPic FROM rooms WHERE rooms_id = ? AND supervisor_id = ?`,
+      [rooms_id, supervisor_id]
+    );
+
+    if (room.length === 0) {
+      return res
+        .status(403)
+        .json({ message: "You do not have permission to update this room" });
+    }
+
+    // ลบรูปภาพเก่าหากมีการอัปโหลดรูปใหม่
+    if (roomsPic && room[0].roomsPic) {
+      try {
+        fs.unlinkSync(room[0].roomsPic); // ลบไฟล์รูปเดิมออกจากเซิร์ฟเวอร์
+      } catch (error) {
+        console.error("Error deleting old room image:", error);
+      }
+    }
+
+    // อัปเดตชื่อห้องและรูปภาพใหม่ (ถ้ามี)
+    await connection.execute(
+      `UPDATE rooms SET rooms_name = ?, roomsPic = COALESCE(?, roomsPic) WHERE rooms_id = ? AND supervisor_id = ?`,
+      [rooms_name, roomsPic, rooms_id, supervisor_id]
+    );
+
+    connection.release();
+
+    return res.status(200).json({
+      message: "Room profile updated successfully",
+      updatedData: {
+        rooms_id,
+        rooms_name,
+        roomsPic,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating room profile:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
 // Delete room
 const deleteRoom = async (req, res) => {
   let connection;
@@ -348,5 +407,6 @@ module.exports = {
   getChildDataOfRoom,
   deleteRoom,
   removeChildFromRoom,
+  updateRoomProfile,
   upload,
 };

@@ -25,4 +25,10 @@ router.delete("/delete-room", deleteRoom);
 
 router.delete("/remove-child-from-room", removeChildFromRoom);
 
+router.put(
+  "/update-room/:rooms_id/:supervisor_id",
+  upload.single("roomsPic"),
+  addRooms
+);
+
 module.exports = router;
