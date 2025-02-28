@@ -639,7 +639,7 @@ const fetchNextAssessmentSupervisor = async (req, res) => {
     const updateQuery = `
       UPDATE assessment_supervisor
       SET status = 'passed'
-      WHERE supervisor_assessment_id = ? AND status = 'in_progress'
+      WHERE supervisor_assessment_id = ? AND status = 'in_progress' OR status = 'not_passed'
     `;
     const [updateResult] = await pool.query(updateQuery, [
       supervisor_assessment_id,
@@ -812,49 +812,112 @@ const getSupervisorAssessmentsAllData = async (req, res) => {
           a.child_id,
           a.aspect,
           a.status,
-          d.age_range,  
-          TIMESTAMPDIFF(MONTH, c.birthday, CURDATE()) AS child_age_months,  -- คำนวณอายุเป็นเดือน
+          d.age_range,
+          TIMESTAMPDIFF(MONTH, c.birthday, CURDATE()) AS child_age_months,  
           ROW_NUMBER() OVER (PARTITION BY a.child_id, a.aspect ORDER BY a.assessment_date DESC) AS row_num
         FROM assessment_supervisor a
-        JOIN children c ON a.child_id = c.child_id  -- ✅ แก้จาก c.id เป็น c.child_id
-        JOIN assessment_details d ON a.assessment_details_id = d.assessment_details_id  -- ✅ แก้จาก d.id เป็น d.assessment_details_id
+        JOIN children c ON a.child_id = c.child_id  
+        JOIN assessment_details d ON a.assessment_details_id = d.assessment_details_id  
         WHERE a.supervisor_id = ?
       )
       SELECT 
         aspect,
         SUM(
           CASE 
-            WHEN status = 'passed' 
-            AND (
-              (age_range REGEXP '^[0-9]+ - [0-9]+$' 
-                AND child_age_months BETWEEN 
-                  CAST(SUBSTRING_INDEX(age_range, ' - ', 1) AS UNSIGNED) 
-                  AND 
-                  CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED)) 
-              OR (age_range REGEXP '^[0-9]+$' 
-                AND child_age_months = CAST(age_range AS UNSIGNED))
+            -- ถ้าสถานะเป็น 'in_progress' หรือ 'not_passed' และเด็กอายุน้อยกว่าช่วงอายุ
+            WHEN (status IN ('in_progress', 'not_passed')) AND (
+              child_age_months < 
+              CASE 
+                WHEN age_range REGEXP '^[0-9]+ - [0-9]+$' 
+                THEN CAST(SUBSTRING_INDEX(age_range, ' - ', 1) AS UNSIGNED) 
+                WHEN age_range REGEXP '^[0-9]+$' 
+                THEN CAST(age_range AS UNSIGNED) 
+                ELSE NULL 
+              END
             ) 
-          THEN 1 ELSE 0 
-        END) AS passed_count,
+            THEN 1 ELSE 0 
+          END
+        ) AS passed_count,
         SUM(
           CASE 
-            WHEN status = 'not_passed' 
-            OR NOT (
-              (age_range REGEXP '^[0-9]+ - [0-9]+$' 
-                AND child_age_months BETWEEN 
-                  CAST(SUBSTRING_INDEX(age_range, ' - ', 1) AS UNSIGNED) 
-                  AND 
-                  CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED)) 
-              OR (age_range REGEXP '^[0-9]+$' 
-                AND child_age_months = CAST(age_range AS UNSIGNED))
+            -- ถ้าสถานะเป็น 'in_progress' หรือ 'not_passed' และเด็กอายุมากกว่าหรือเท่ากับช่วงอายุ
+            WHEN (status IN ('in_progress', 'not_passed')) AND (
+              child_age_months >= 
+              CASE 
+                WHEN age_range REGEXP '^[0-9]+ - [0-9]+$' 
+                THEN CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED) 
+                WHEN age_range REGEXP '^[0-9]+$' 
+                THEN CAST(age_range AS UNSIGNED) 
+                ELSE NULL 
+              END
             ) 
-          THEN 1 ELSE 0 
-        END) AS not_passed_count
+            THEN 1 ELSE 0 
+          END
+        ) AS not_passed_count
       FROM LatestStatus
       WHERE row_num = 1
       GROUP BY aspect
       ORDER BY aspect ASC;
     `;
+
+    const [results] = await pool.query(query, [supervisor_id]);
+
+    if (results.length === 0) {
+      return res.status(200).json({
+        message: "No assessments found for this supervisor.",
+        data: [],
+      });
+    }
+
+    res.status(200).json({
+      message: "Supervisor assessments retrieved successfully.",
+      data: results,
+    });
+  } catch (error) {
+    console.error("Error fetching supervisor assessments:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to retrieve supervisor assessments" });
+  }
+};
+
+const getSupervisorAssessmentsAllDataMoreDetails = async (req, res) => {
+  const { supervisor_id } = req.params;
+
+  if (!supervisor_id) {
+    return res.status(400).json({ message: "ต้องระบุ Supervisor ID" });
+  }
+
+  try {
+    const query = `
+    WITH ChildAssessmentDetails AS (
+      SELECT 
+        a.child_id,
+        c.firstName,
+        c.lastName,
+        c.nickName,
+        c.birthday,
+        a.supervisor_id,
+        a.aspect,
+        a.status,
+        d.age_range,
+        d.assessment_name,
+        d.assessment_image,
+        TIMESTAMPDIFF(MONTH, c.birthday, CURDATE()) AS child_age_months
+      FROM assessment_supervisor a
+      JOIN children c ON a.child_id = c.child_id
+      JOIN assessment_details d ON a.assessment_details_id = d.assessment_details_id
+      WHERE a.supervisor_id = ?
+    )
+    SELECT 
+      aspect,
+      age_range,
+      COUNT(CASE WHEN status = 'passed' THEN 1 END) AS passed_count,
+      COUNT(CASE WHEN status = 'not_passed' THEN 1 END) AS not_passed_count
+    FROM ChildAssessmentDetails
+    GROUP BY aspect, age_range
+    ORDER BY aspect ASC, age_range;
+  `;
 
     const [results] = await pool.query(query, [supervisor_id]);
 
@@ -965,4 +1028,5 @@ module.exports = {
   getAssessmentsAllChild,
   getAssessmentsByChildForSupervisor,
   updateAssessmentStatusNotPassed,
+  getSupervisorAssessmentsAllDataMoreDetails,
 };

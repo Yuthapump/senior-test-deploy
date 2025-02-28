@@ -64,6 +64,12 @@ router.get(
   assessmentController.getSupervisorAssessmentsAllData
 );
 
+//
+router.get(
+  "/assessments-data-supervisor-more/:supervisor_id",
+  assessmentController.getSupervisorAssessmentsAllDataMoreDetails
+);
+
 // Route to getAssessmentsByChildForSupervisor
 router.get(
   "/assessments-child-supervisor/:supervisor_id/:child_id",
