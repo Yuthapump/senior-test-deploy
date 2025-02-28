@@ -30,7 +30,7 @@ const sendPushNotification = async (expoPushToken, message) => {
 
 // ฟังก์ชันสำหรับการอนุมัติคำขอสิทธิ์
 const approveAccessRequest = async (req, res) => {
-  const { child_id, supervisor_id, parent_id } = req.body;
+  const { child_id, supervisor_id, parent_id, notification_id } = req.body;
 
   if (!child_id || !supervisor_id || !parent_id) {
     return res
@@ -40,6 +40,12 @@ const approveAccessRequest = async (req, res) => {
 
   try {
     const connection = await pool.getConnection();
+
+    // อัปเดต status เป็น 'read'
+    const [result] = await connection.execute(
+      "UPDATE notifications SET status = 'read' WHERE notification_id = ?",
+      [notification_id]
+    );
 
     // อัปเดตสถานะคำขอสิทธิ์
     await connection.execute(
@@ -194,6 +200,7 @@ const deleteOldNotifications = async (user_id) => {
     `,
       [user_id, user_id]
     );
+    console.log("✅ Old notifications deleted for User ID", user_id);
 
     connection.release();
   } catch (error) {
