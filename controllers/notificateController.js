@@ -47,6 +47,12 @@ const approveAccessRequest = async (req, res) => {
       [notification_id]
     );
 
+    // update tamplate_id
+    const [result2] = await connection.execute(
+      "UPDATE notifications SET template_id = 2 WHERE notification_id = ?",
+      [notification_id]
+    );
+
     // อัปเดตสถานะคำขอสิทธิ์
     await connection.execute(
       "UPDATE access_requests SET status = ? WHERE child_id = ? AND supervisor_id = ?",
@@ -86,7 +92,7 @@ const approveAccessRequest = async (req, res) => {
         "✅ การขอเข้าถึงข้อมูลของเด็กได้รับการอนุมัติแล้ว!",
         supervisor_id,
         child_id,
-        1,
+        2,
         "unread",
       ]
     );
