@@ -174,6 +174,33 @@ const getAllNotifications = async (req, res) => {
   }
 };
 
+// ฟังก์ชันสำหรับลบการแจ้งเตือนเกิน 20 รายการต่อผู้ใช้
+const deleteOldNotifications = async (user_id) => {
+  try {
+    const connection = await pool.getConnection();
+
+    // ลบแจ้งเตือนที่เก่าที่สุดเกิน 20 รายการ
+    await connection.execute(
+      `
+      DELETE FROM notifications
+      WHERE notification_id NOT IN (
+        SELECT notification_id FROM (
+          SELECT notification_id FROM notifications
+          WHERE user_id = ?
+          ORDER BY created_at DESC
+          LIMIT 20
+        ) AS latest_notifications
+      ) AND user_id = ?;
+    `,
+      [user_id, user_id]
+    );
+
+    connection.release();
+  } catch (error) {
+    console.error("❌ Error deleting old notifications:", error);
+  }
+};
+
 const sendAssessmentReminder = async () => {
   let connection;
   try {
@@ -193,7 +220,7 @@ const sendAssessmentReminder = async () => {
       JOIN assessments a ON c.child_id = a.child_id
       JOIN users u ON a.user_id = u.user_id 
       JOIN expo_tokens et ON a.user_id = et.user_id 
-      WHERE a.assessment_date <= NOW() - INTERVAL 5 MINUTE
+      WHERE a.assessment_date <= NOW() - INTERVAL 2 WEEK
       GROUP BY c.child_id, a.user_id, u.userName, et.expo_push_token
       ORDER BY last_assessment_date DESC; 
     `);
@@ -211,6 +238,9 @@ const sendAssessmentReminder = async () => {
         "INSERT INTO notifications (user_id, message, supervisor_id, child_id, template_id, status) VALUES (?, ?, ?, ?, ?, ?)",
         [child.user_id, message, child.user_id, child.child_id, 2, "unread"]
       );
+
+      // ✅ ลบแจ้งเตือนเก่าที่เกิน 20 รายการ
+      await deleteOldNotifications(child.user_id);
 
       // ✅ ส่ง Push Notification
       if (child.expo_push_token) {
