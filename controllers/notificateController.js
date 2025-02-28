@@ -55,7 +55,7 @@ const approveAccessRequest = async (req, res) => {
 
     // update status & template_id & message
     const [result] = await connection.execute(
-      "UPDATE notifications SET status = 'read', template_id = 2, message = ? WHERE notification_id = ?",
+      "UPDATE notifications SET status = 'read', template_id = 3, message = ? WHERE notification_id = ?",
       [
         `✅ คุณได้อนุมัติการเข้าถึงข้อมูลเด็กให้กับ ${supervisorName} แล้ว!`,
         notification_id,
