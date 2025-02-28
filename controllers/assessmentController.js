@@ -813,11 +813,11 @@ const getSupervisorAssessmentsAllData = async (req, res) => {
           a.aspect,
           a.status,
           d.age_range,  
-          TIMESTAMPDIFF(MONTH, c.birthday, CURDATE()) AS child_age_months,  -- คำนวณอายุเด็กเป็นเดือน
+          TIMESTAMPDIFF(MONTH, c.birthday, CURDATE()) AS child_age_months,  -- คำนวณอายุเป็นเดือน
           ROW_NUMBER() OVER (PARTITION BY a.child_id, a.aspect ORDER BY a.created_at DESC) AS row_num
         FROM assessment_supervisor a
-        JOIN children c ON a.child_id = c.child_id
-        JOIN assessment_details d ON a.assessment_details_id = d.assessment_details_id
+        JOIN children c ON a.child_id = c.child_id  -- ✅ แก้จาก c.id เป็น c.child_id
+        JOIN assessment_details d ON a.assessment_details_id = d.assessment_details_id  -- ✅ แก้จาก d.id เป็น d.assessment_details_id
         WHERE a.supervisor_id = ?
       )
       SELECT 
