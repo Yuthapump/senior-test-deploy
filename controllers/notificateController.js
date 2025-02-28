@@ -41,16 +41,25 @@ const approveAccessRequest = async (req, res) => {
   try {
     const connection = await pool.getConnection();
 
-    // อัปเดต status เป็น 'read'
-    const [result] = await connection.execute(
-      "UPDATE notifications SET status = 'read' WHERE notification_id = ?",
-      [notification_id]
+    // ดึง userName ของ Supervisor
+    const [supervisorRows] = await connection.execute(
+      "SELECT userName FROM users WHERE user_id = ?",
+      [supervisor_id]
     );
 
-    // update tamplate_id
-    const [result2] = await connection.execute(
-      "UPDATE notifications SET template_id = 2 WHERE notification_id = ?",
-      [notification_id]
+    if (supervisorRows.length === 0) {
+      return res.status(404).json({ message: "Supervisor not found" });
+    }
+
+    const supervisorName = supervisorRows[0].userName;
+
+    // update status & template_id & message
+    const [result] = await connection.execute(
+      "UPDATE notifications SET status = 'read', template_id = 2, message = ? WHERE notification_id = ?",
+      [
+        `✅ คุณได้อนุมัติการเข้าถึงข้อมูลเด็กให้กับ ${supervisorName} แล้ว!`,
+        notification_id,
+      ]
     );
 
     // อัปเดตสถานะคำขอสิทธิ์
