@@ -774,14 +774,27 @@ const getSupervisorAssessmentsAllData = async (req, res) => {
 
   try {
     const query = `
+      WITH LatestStatus AS (
+        SELECT 
+          a.child_id,
+          a.aspect,
+          a.status,
+          d.age_range,  -- ดึงช่วงอายุที่ควรผ่านจาก assessment_details
+          c.age AS child_age,
+          ROW_NUMBER() OVER (PARTITION BY a.child_id, a.aspect ORDER BY a.created_at DESC) AS row_num
+        FROM assessment_supervisor a
+        JOIN children c ON a.child_id = c.id
+        JOIN assessment_details d ON a.assessment_details_id = d.id  -- JOIN ตาราง assessment_details เพื่อดึง age_range
+        WHERE a.supervisor_id = ?
+      )
       SELECT 
         aspect,
-        SUM(CASE WHEN status = 'passed' THEN 1 ELSE 0 END) AS passed_count,
-        SUM(CASE WHEN status = 'not_passed' THEN 1 ELSE 0 END) AS not_passed_count
-      FROM assessment_supervisor
-      WHERE supervisor_id = ?
+        SUM(CASE WHEN status = 'passed' AND age_range >= child_age THEN 1 ELSE 0 END) AS passed_count,
+        SUM(CASE WHEN status = 'not_passed' OR age_range < child_age THEN 1 ELSE 0 END) AS not_passed_count
+      FROM LatestStatus
+      WHERE row_num = 1
       GROUP BY aspect
-      ORDER BY aspect ASC
+      ORDER BY aspect ASC;
     `;
 
     const [results] = await pool.query(query, [supervisor_id]);
