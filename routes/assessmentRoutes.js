@@ -52,6 +52,12 @@ router.post(
   assessmentController.fetchNextAssessmentSupervisor
 );
 
+// Route for not_passed
+router.post(
+  "/assessments-not-passed-supervisor",
+  assessmentController.updateAssessmentStatusNotPassed
+);
+
 // Route to fetch all assessments for a supervisor
 router.get(
   "/assessments-data-supervisor/:supervisor_id",

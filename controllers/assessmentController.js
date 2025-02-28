@@ -769,6 +769,39 @@ const fetchNextAssessmentSupervisor = async (req, res) => {
   }
 };
 
+const updateAssessmentStatusNotPassed = async (req, res) => {
+  const { supervisor_assessment_id } = req.body;
+
+  try {
+    // ✅ อัปเดตสถานะเป็น 'not_passed'
+    const updateQuery = `
+      UPDATE assessment_supervisor
+      SET status = 'not_passed'
+      WHERE supervisor_assessment_id = ? AND status = 'in_progress'
+    `;
+    const [updateResult] = await pool.query(updateQuery, [
+      supervisor_assessment_id,
+    ]);
+
+    if (updateResult.affectedRows === 0) {
+      return res.status(404).json({
+        message: "ไม่พบการประเมินที่กำลังดำเนินการ หรืออัปเดตสถานะไม่สำเร็จ",
+      });
+    }
+
+    return res.status(200).json({
+      message: "อัปเดตสถานะการประเมินเป็น 'not_passed' สำเร็จ",
+      supervisor_assessment_id,
+      new_status: "not_passed",
+    });
+  } catch (error) {
+    console.error("Error updating assessment status to 'not_passed':", error);
+    return res.status(500).json({
+      message: "เกิดข้อผิดพลาดในการอัปเดตสถานะการประเมินเป็น 'not_passed'",
+    });
+  }
+};
+
 const getSupervisorAssessmentsAllData = async (req, res) => {
   const { supervisor_id } = req.params;
 
@@ -905,4 +938,5 @@ module.exports = {
   getSupervisorAssessmentsAllData,
   getAssessmentsAllChild,
   getAssessmentsByChildForSupervisor,
+  updateAssessmentStatusNotPassed,
 };
