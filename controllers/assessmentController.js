@@ -808,55 +808,45 @@ const getSupervisorAssessmentsAllData = async (req, res) => {
   try {
     const query = `
       WITH LatestStatus AS (
-        SELECT 
-          a.child_id,
-          a.aspect,
-          a.status,
-          d.age_range,
-          TIMESTAMPDIFF(MONTH, c.birthday, CURDATE()) AS child_age_months,  
-          ROW_NUMBER() OVER (PARTITION BY a.child_id, a.aspect ORDER BY a.assessment_date DESC) AS row_num
-        FROM assessment_supervisor a
-        JOIN children c ON a.child_id = c.child_id  
-        JOIN assessment_details d ON a.assessment_details_id = d.assessment_details_id  
-        WHERE a.supervisor_id = ?
-      )
-      SELECT 
-        aspect,
-        SUM(
+  SELECT 
+    a.child_id,
+    a.aspect,
+    a.status,
+    d.age_range,
+    TIMESTAMPDIFF(MONTH, c.birthday, CURDATE()) AS child_age_months,  
+    ROW_NUMBER() OVER (PARTITION BY a.child_id, a.aspect ORDER BY a.assessment_date DESC) AS row_num
+  FROM assessment_supervisor a
+  JOIN children c ON a.child_id = c.child_id  
+  JOIN assessment_details d ON a.assessment_details_id = d.assessment_details_id  
+  WHERE a.supervisor_id = ?
+)
+SELECT 
+  aspect,
+  
+  -- ✅ คำนวณ passed_count
+  SUM(
   CASE 
-    -- ✅ ถ้าอายุเด็กน้อยกว่าหรือเท่ากับช่วงอายุขั้นต่ำที่กำหนด
-    WHEN (status IN ('in_progress', 'not_passed')) 
-         AND (child_age_months <= 
-         CASE 
-           WHEN age_range REGEXP '^[0-9]+ - [0-9]+$' 
-           THEN CAST(SUBSTRING_INDEX(age_range, ' - ', 1) AS UNSIGNED) 
-           WHEN age_range REGEXP '^[0-9]+$' 
-           THEN CAST(age_range AS UNSIGNED) 
-           ELSE NULL 
-         END OR child_age_months = 0) -- ✅ รองรับเด็กที่อายุ 0 เดือน) 
+    WHEN status = 'in_progress' 
+         AND (
+         (child_age_months >= CAST(SUBSTRING_INDEX(age_range, ' - ', 1) AS UNSIGNED)
+         AND child_age_months <= CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED))
+         OR child_age_months = 0) 
     THEN 1 ELSE 0 
   END
 ) AS passed_count,
 
-SUM(
-  CASE 
-    -- ✅ ถ้าอายุเด็กมากกว่าหรือเท่ากับช่วงอายุสูงสุดที่กำหนด
-    WHEN (status IN ('in_progress', 'not_passed')) 
-         AND (child_age_months >= 
-         CASE 
-           WHEN age_range REGEXP '^[0-9]+ - [0-9]+$' 
-           THEN CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED) 
-           WHEN age_range REGEXP '^[0-9]+$' 
-           THEN CAST(age_range AS UNSIGNED) 
-           ELSE NULL 
-         END) 
-    THEN 1 ELSE 0 
-  END
-) AS not_passed_count
-      FROM LatestStatus
-      WHERE row_num = 1
-      GROUP BY aspect
-      ORDER BY aspect ASC;
+  -- ✅ เปลี่ยนจาก SUM(CASE...) เป็น COUNT(*) เพื่อให้นับค่า not_passed โดยตรง
+  COUNT(
+    CASE 
+      WHEN status = 'not_passed' THEN 1 ELSE NULL 
+    END
+  ) AS not_passed_count
+
+FROM LatestStatus
+WHERE row_num = 1
+GROUP BY aspect
+ORDER BY aspect ASC;
+
     `;
 
     const [results] = await pool.query(query, [supervisor_id]);
