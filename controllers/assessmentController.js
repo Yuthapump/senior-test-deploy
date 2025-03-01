@@ -823,37 +823,36 @@ const getSupervisorAssessmentsAllData = async (req, res) => {
       SELECT 
         aspect,
         SUM(
-          CASE 
-            -- ถ้าสถานะเป็น 'in_progress' หรือ 'not_passed' และเด็กอายุน้อยกว่าช่วงอายุ
-            WHEN (status IN ('in_progress', 'not_passed')) AND (
-              child_age_months < 
-              CASE 
-                WHEN age_range REGEXP '^[0-9]+ - [0-9]+$' 
-                THEN CAST(SUBSTRING_INDEX(age_range, ' - ', 1) AS UNSIGNED) 
-                WHEN age_range REGEXP '^[0-9]+$' 
-                THEN CAST(age_range AS UNSIGNED) 
-                ELSE NULL 
-              END
-            ) 
-            THEN 1 ELSE 0 
-          END
-        ) AS passed_count,
-        SUM(
-          CASE 
-            -- ถ้าสถานะเป็น 'in_progress' หรือ 'not_passed' และเด็กอายุมากกว่าหรือเท่ากับช่วงอายุ
-            WHEN (status IN ('in_progress', 'not_passed')) AND (
-              child_age_months >= 
-              CASE 
-                WHEN age_range REGEXP '^[0-9]+ - [0-9]+$' 
-                THEN CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED) 
-                WHEN age_range REGEXP '^[0-9]+$' 
-                THEN CAST(age_range AS UNSIGNED) 
-                ELSE NULL 
-              END
-            ) 
-            THEN 1 ELSE 0 
-          END
-        ) AS not_passed_count
+  CASE 
+    -- ✅ ถ้าอายุเด็กน้อยกว่าหรือเท่ากับช่วงอายุขั้นต่ำที่กำหนด
+    WHEN (status IN ('in_progress', 'not_passed')) 
+         AND (child_age_months <= 
+         CASE 
+           WHEN age_range REGEXP '^[0-9]+ - [0-9]+$' 
+           THEN CAST(SUBSTRING_INDEX(age_range, ' - ', 1) AS UNSIGNED) 
+           WHEN age_range REGEXP '^[0-9]+$' 
+           THEN CAST(age_range AS UNSIGNED) 
+           ELSE NULL 
+         END OR child_age_months = 0) -- ✅ รองรับเด็กที่อายุ 0 เดือน) 
+    THEN 1 ELSE 0 
+  END
+) AS passed_count,
+
+SUM(
+  CASE 
+    -- ✅ ถ้าอายุเด็กมากกว่าหรือเท่ากับช่วงอายุสูงสุดที่กำหนด
+    WHEN (status IN ('in_progress', 'not_passed')) 
+         AND (child_age_months >= 
+         CASE 
+           WHEN age_range REGEXP '^[0-9]+ - [0-9]+$' 
+           THEN CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED) 
+           WHEN age_range REGEXP '^[0-9]+$' 
+           THEN CAST(age_range AS UNSIGNED) 
+           ELSE NULL 
+         END) 
+    THEN 1 ELSE 0 
+  END
+) AS not_passed_count
       FROM LatestStatus
       WHERE row_num = 1
       GROUP BY aspect
