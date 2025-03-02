@@ -824,30 +824,41 @@ SELECT
   aspect,
   
   -- ✅ คำนวณ passed_count
-  SUM(
+ SUM(
   CASE 
-    WHEN status = 'in_progress' 
+    WHEN status IN ('in_progress', 'not_passed', 'passed_all') 
          AND (
-         (child_age_months >= CAST(SUBSTRING_INDEX(age_range, ' - ', 1) AS UNSIGNED)
-         AND child_age_months <= CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED))
-         OR child_age_months = 0) 
+           (
+             age_range REGEXP '^[0-9]+-[0-9]+$' 
+             AND child_age_months < CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED)
+           ) 
+           OR (
+             age_range REGEXP '^[0-9]+$'
+             AND child_age_months < CAST(age_range AS UNSIGNED)
+           )
+         ) 
     THEN 1 ELSE 0 
   END
 ) AS passed_count,
 
-  -- ✅ เปลี่ยนจาก SUM(CASE...) เป็น COUNT(*) เพื่อให้นับค่า not_passed โดยตรง
-  COUNT(
-    CASE 
-      WHEN status = 'not_passed' THEN 1 ELSE NULL 
-    END
-  ) AS not_passed_count
+  SUM(
+  CASE 
+    WHEN status IN ('not_passed') 
+         AND (
+           ( age_range REGEXP '^[0-9]+-[0-9]+$' 
+             AND child_age_months >= CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED)) 
+           OR ( age_range REGEXP '^[0-9]+$'
+             AND child_age_months >= CAST(age_range AS UNSIGNED))
+         ) 
+    THEN 1 ELSE 0 
+  END
+) AS not_passed_count
 
 FROM LatestStatus
 WHERE row_num = 1
 GROUP BY aspect
 ORDER BY aspect ASC;
-
-    `;
+`;
 
     const [results] = await pool.query(query, [supervisor_id]);
 
