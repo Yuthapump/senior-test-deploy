@@ -242,7 +242,7 @@ const sendAssessmentReminder = async () => {
       JOIN assessments a ON c.child_id = a.child_id
       JOIN users u ON a.user_id = u.user_id 
       JOIN expo_tokens et ON a.user_id = et.user_id 
-      WHERE a.assessment_date <= NOW() - INTERVAL 5 MINUTE
+      WHERE a.assessment_date <= NOW() - INTERVAL 2 WEEK
       GROUP BY c.child_id, a.user_id, u.userName, et.expo_push_token
       ORDER BY last_assessment_date DESC; 
     `);
