@@ -200,8 +200,8 @@ const forgetPassword = async (req, res) => {
     });
 
     // const resetLink = `${process.env.EXPO_DEV_URL}/--/resetPassword?token=${resetToken}`; // For Test
-    const resetLink = `dekdek://reset-password?token=${resetToken}`; // Custome
-    // const resetLink = `https://senior-test-deploy-production-1362.up.railway.app/reset-password?token=${resetToken}`; // สำหรับ Mobile App
+    // const resetLink = `dekdek://reset-password?token=${resetToken}`; // Custome
+    const resetLink = `https://senior-test-deploy-production-1362.up.railway.app/reset-password?token=${resetToken}`; // สำหรับ Mobile App
     const mailOptions = {
       from: "DekDek App",
       to: email,

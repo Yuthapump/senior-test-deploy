@@ -80,7 +80,10 @@ app.post("/api/upload", (req, res) => {
   });
 });
 
-// ให้บริการ assetlinks.json บนเส้นทาง /.well-known/
+// เสิร์ฟไฟล์ static จากโฟลเดอร์ `public`
+app.use(express.static(path.join(__dirname, "public")));
+
+// ตรวจสอบว่า assetlinks.json เสิร์ฟได้
 app.use(
   "/.well-known",
   express.static(path.join(__dirname, "public/.well-known"))
