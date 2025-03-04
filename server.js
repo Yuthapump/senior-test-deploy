@@ -89,6 +89,18 @@ app.use(
   express.static(path.join(__dirname, "public/.well-known"))
 );
 
+app.get("/reset-password", (req, res) => {
+  const { token } = req.query; // รับ token จาก query parameter
+
+  if (!token) {
+    return res.status(400).send("Invalid request: Missing token");
+  }
+
+  // ✅ Redirect ไปที่แอป (Deep Linking)
+  const appLink = `dekdek://reset-password?token=${token}`;
+  res.redirect(appLink);
+});
+
 // === Middleware สำหรับตรวจสอบ Token หรือ Authorization ===
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
