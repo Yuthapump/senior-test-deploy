@@ -598,18 +598,31 @@ const updateSupervisorAssessment = async (req, res) => {
   try {
     connection = await pool.getConnection();
 
-    // ✅ อัปเดตสถานะเป็น `not_passed`
-    const updateQuery = `
-      UPDATE assessment_supervisor 
-      SET status = 'not_passed' 
-      WHERE supervisor_assessment_id = ?`;
+    // ✅ 1. ดึงสถานะล่าสุด
+    const [currentStatus] = await connection.query(
+      `SELECT status FROM assessment_supervisor WHERE supervisor_assessment_id = ? LIMIT 1`,
+      [supervisor_assessment_id]
+    );
 
-    const [updateResult] = await connection.execute(updateQuery, [
-      supervisor_assessment_id,
-    ]);
+    // ✅ 2. ถ้าสถานะเดิมเป็น 'not_passed' อยู่แล้ว ไม่ต้องอัปเดตซ้ำ
+    if (currentStatus.length > 0 && currentStatus[0].status === "not_passed") {
+      connection.release();
+      return res
+        .status(200)
+        .json({ message: "Already 'not_passed', no update performed." });
+    }
+
+    // ✅ 3. อัปเดตสถานะเป็น 'not_passed'
+    const [updateResult] = await connection.query(
+      `UPDATE assessment_supervisor 
+       SET status = "not_passed", assessment_date = NOW() 
+       WHERE supervisor_assessment_id = ?`,
+      [supervisor_assessment_id]
+    );
 
     connection.release();
 
+    // ✅ 4. ตรวจสอบว่ามีการอัปเดตจริงหรือไม่
     if (updateResult.affectedRows === 0) {
       return res
         .status(404)
@@ -807,65 +820,82 @@ const getSupervisorAssessmentsAllData = async (req, res) => {
 
   try {
     const query = `
-      WITH LatestStatus AS (
-        SELECT 
-          a.child_id,
-          c.firstName AS child_first_name,
-          c.lastName AS child_last_name,
-          c.nickName AS child_nickname,
-          a.aspect,
-          a.status,
-          d.age_range,
-          TIMESTAMPDIFF(MONTH, c.birthday, CURDATE()) AS child_age_months,  
-          ROW_NUMBER() OVER (PARTITION BY a.child_id, a.aspect ORDER BY a.assessment_date DESC) AS row_num
-        FROM assessment_supervisor a
-        JOIN children c ON a.child_id = c.child_id  
-        JOIN assessment_details d ON a.assessment_details_id = d.assessment_details_id  
-        WHERE a.supervisor_id = ?
-      )
-      SELECT 
-        aspect,
-        SUM(
-          CASE 
-            WHEN status IN ('in_progress', 'not_passed', 'passed_all') 
-                 AND (
-                   (age_range REGEXP '^[0-9]+-[0-9]+$' 
-                   AND child_age_months < CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED)) 
-                   OR (age_range REGEXP '^[0-9]+$'
-                   AND child_age_months < CAST(age_range AS UNSIGNED))
-                 ) 
-            THEN 1 ELSE 0 
-          END
-        ) AS passed_count,
-        SUM(
-          CASE 
-            WHEN status = 'not_passed' 
-                 AND (
-                   (age_range REGEXP '^[0-9]+-[0-9]+$' 
-                   AND child_age_months >= CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED)) 
-                   OR (age_range REGEXP '^[0-9]+$'
-                   AND child_age_months >= CAST(age_range AS UNSIGNED))
-                 ) 
-            THEN 1 ELSE 0 
-          END
-        ) AS not_passed_count,
-        JSON_ARRAYAGG(
-          CASE 
-            WHEN status = 'not_passed' 
-            THEN JSON_OBJECT(
-              'child_id', child_id,
-              'first_name', child_first_name,
-              'last_name', child_last_name,
-              'nickname', child_nickname,
-              'age_months', child_age_months
-            )
-            ELSE NULL 
-          END
-        ) AS not_passed_children
-      FROM LatestStatus
-      WHERE row_num = 1
-      GROUP BY aspect
-      ORDER BY aspect ASC;
+     WITH LatestStatus AS (
+  SELECT 
+    a.child_id,
+    c.firstName AS child_first_name,
+    c.lastName AS child_last_name,
+    c.nickName AS child_nickname,
+    a.aspect,
+    a.status,
+    d.age_range,
+    TIMESTAMPDIFF(MONTH, c.birthday, CURDATE()) AS child_age_months,  
+    ROW_NUMBER() OVER (PARTITION BY a.child_id, a.aspect ORDER BY a.assessment_date DESC) AS row_num
+  FROM assessment_supervisor a
+  JOIN children c ON a.child_id = c.child_id  
+  JOIN assessment_details d ON a.assessment_details_id = d.assessment_details_id  
+  WHERE a.supervisor_id = ?
+)
+SELECT 
+  aspect,
+
+  -- ✅ นับเฉพาะเด็กที่ตรงกับเงื่อนไขการผ่าน
+  SUM(
+    CASE 
+      WHEN status IN ('in_progress', 'not_passed', 'passed_all') 
+           AND (
+             (age_range REGEXP '^[0-9]+-[0-9]+$' 
+             AND child_age_months < CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED)) 
+             OR (age_range REGEXP '^[0-9]+$'
+             AND child_age_months < CAST(age_range AS UNSIGNED))
+           ) 
+      THEN 1 ELSE 0 
+    END
+  ) AS passed_count,
+
+  -- ✅ นับเฉพาะเด็กที่ไม่ผ่านตามเงื่อนไข
+  SUM(
+    CASE 
+      WHEN status = 'not_passed' 
+           AND (
+             (age_range REGEXP '^[0-9]+-[0-9]+$' 
+             AND child_age_months >= CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED)) 
+             OR (age_range REGEXP '^[0-9]+$'
+             AND child_age_months >= CAST(age_range AS UNSIGNED))
+           ) 
+      THEN 1 ELSE 0 
+    END
+  ) AS not_passed_count,
+
+  -- ✅ รวมเฉพาะเด็กที่อยู่ใน not_passed_count เท่านั้น
+  COALESCE(
+    JSON_ARRAYAGG(
+      CASE 
+        WHEN status = 'not_passed'
+             AND (
+               (age_range REGEXP '^[0-9]+-[0-9]+$' 
+               AND child_age_months >= CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED)) 
+               OR (age_range REGEXP '^[0-9]+$'
+               AND child_age_months >= CAST(age_range AS UNSIGNED))
+             ) 
+        THEN JSON_OBJECT(
+          'child_id', child_id,
+          'first_name', child_first_name,
+          'last_name', child_last_name,
+          'nickname', child_nickname,
+          'age_months', child_age_months
+        )
+        ELSE NULL 
+      END
+    ), 
+    JSON_ARRAY()
+  ) AS not_passed_children
+
+FROM LatestStatus
+WHERE row_num = 1
+GROUP BY aspect
+HAVING not_passed_count > 0 -- ✅ แสดงเฉพาะ aspect ที่มีเด็กไม่ผ่าน
+ORDER BY aspect ASC;
     `;
 
     const [results] = await pool.query(query, [supervisor_id]);
