@@ -808,57 +808,65 @@ const getSupervisorAssessmentsAllData = async (req, res) => {
   try {
     const query = `
       WITH LatestStatus AS (
-  SELECT 
-    a.child_id,
-    a.aspect,
-    a.status,
-    d.age_range,
-    TIMESTAMPDIFF(MONTH, c.birthday, CURDATE()) AS child_age_months,  
-    ROW_NUMBER() OVER (PARTITION BY a.child_id, a.aspect ORDER BY a.assessment_date DESC) AS row_num
-  FROM assessment_supervisor a
-  JOIN children c ON a.child_id = c.child_id  
-  JOIN assessment_details d ON a.assessment_details_id = d.assessment_details_id  
-  WHERE a.supervisor_id = ?
-)
-SELECT 
-  aspect,
-  
-  -- ✅ คำนวณ passed_count
- SUM(
-  CASE 
-    WHEN status IN ('in_progress', 'not_passed', 'passed_all') 
-         AND (
-           (
-             age_range REGEXP '^[0-9]+-[0-9]+$' 
-             AND child_age_months < CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED)
-           ) 
-           OR (
-             age_range REGEXP '^[0-9]+$'
-             AND child_age_months < CAST(age_range AS UNSIGNED)
-           )
-         ) 
-    THEN 1 ELSE 0 
-  END
-) AS passed_count,
-
-  SUM(
-  CASE 
-    WHEN status IN ('not_passed') 
-         AND (
-           ( age_range REGEXP '^[0-9]+-[0-9]+$' 
-             AND child_age_months >= CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED)) 
-           OR ( age_range REGEXP '^[0-9]+$'
-             AND child_age_months >= CAST(age_range AS UNSIGNED))
-         ) 
-    THEN 1 ELSE 0 
-  END
-) AS not_passed_count
-
-FROM LatestStatus
-WHERE row_num = 1
-GROUP BY aspect
-ORDER BY aspect ASC;
-`;
+        SELECT 
+          a.child_id,
+          c.firstName AS child_first_name,
+          c.lastName AS child_last_name,
+          c.nickName AS child_nickname,
+          a.aspect,
+          a.status,
+          d.age_range,
+          TIMESTAMPDIFF(MONTH, c.birthday, CURDATE()) AS child_age_months,  
+          ROW_NUMBER() OVER (PARTITION BY a.child_id, a.aspect ORDER BY a.assessment_date DESC) AS row_num
+        FROM assessment_supervisor a
+        JOIN children c ON a.child_id = c.child_id  
+        JOIN assessment_details d ON a.assessment_details_id = d.assessment_details_id  
+        WHERE a.supervisor_id = ?
+      )
+      SELECT 
+        aspect,
+        SUM(
+          CASE 
+            WHEN status IN ('in_progress', 'not_passed', 'passed_all') 
+                 AND (
+                   (age_range REGEXP '^[0-9]+-[0-9]+$' 
+                   AND child_age_months < CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED)) 
+                   OR (age_range REGEXP '^[0-9]+$'
+                   AND child_age_months < CAST(age_range AS UNSIGNED))
+                 ) 
+            THEN 1 ELSE 0 
+          END
+        ) AS passed_count,
+        SUM(
+          CASE 
+            WHEN status = 'not_passed' 
+                 AND (
+                   (age_range REGEXP '^[0-9]+-[0-9]+$' 
+                   AND child_age_months >= CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED)) 
+                   OR (age_range REGEXP '^[0-9]+$'
+                   AND child_age_months >= CAST(age_range AS UNSIGNED))
+                 ) 
+            THEN 1 ELSE 0 
+          END
+        ) AS not_passed_count,
+        JSON_ARRAYAGG(
+          CASE 
+            WHEN status = 'not_passed' 
+            THEN JSON_OBJECT(
+              'child_id', child_id,
+              'first_name', child_first_name,
+              'last_name', child_last_name,
+              'nickname', child_nickname,
+              'age_months', child_age_months
+            )
+            ELSE NULL 
+          END
+        ) AS not_passed_children
+      FROM LatestStatus
+      WHERE row_num = 1
+      GROUP BY aspect
+      ORDER BY aspect ASC;
+    `;
 
     const [results] = await pool.query(query, [supervisor_id]);
 
