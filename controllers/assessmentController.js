@@ -826,6 +826,9 @@ const getSupervisorAssessmentsAllData = async (req, res) => {
           c.firstName AS child_first_name,
           c.lastName AS child_last_name,
           c.nickName AS child_nickname,
+          c.birthday,
+          c.gender,
+          c.childPic,
           a.aspect,
           a.status,
           d.age_range,
@@ -867,9 +870,12 @@ const getSupervisorAssessmentsAllData = async (req, res) => {
             WHEN status = 'not_passed' 
             THEN JSON_OBJECT(
               'child_id', child_id,
-              'first_name', child_first_name,
-              'last_name', child_last_name,
-              'nickname', child_nickname,
+              'firstName', child_first_name,
+              'lastName', child_last_name,
+              'nickName', child_nickname,
+              'birthday', birthday,
+              'gender', gender,
+              'childPic', childPic,
               'age_months', child_age_months
             )
             ELSE NULL 

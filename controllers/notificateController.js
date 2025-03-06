@@ -138,6 +138,91 @@ const approveAccessRequest = async (req, res) => {
   }
 };
 
+// ฟังก์ชันสำหรับการปฏิเสธคำขอสิทธิ์
+const rejectAccessRequest = async (req, res) => {
+  const { child_id, supervisor_id, parent_id, notification_id } = req.body;
+
+  if (!child_id || !supervisor_id || !parent_id) {
+    return res
+      .status(400)
+      .json({ message: "Child ID, Supervisor ID, and Parent ID are required" });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+
+    // ดึง userName ของ Supervisor
+    const [supervisorRows] = await connection.execute(
+      "SELECT userName FROM users WHERE user_id = ?",
+      [supervisor_id]
+    );
+
+    if (supervisorRows.length === 0) {
+      return res.status(404).json({ message: "Supervisor not found" });
+    }
+
+    const supervisorName = supervisorRows[0].userName;
+
+    // update status & template_id & message
+    const [result] = await connection.execute(
+      "UPDATE notifications SET status = 'read', template_id = 3, message = ? WHERE notification_id = ?",
+      [
+        `✅ คุณได้ปฏิเสธการเข้าถึงข้อมูลเด็กให้กับ ${supervisorName} แล้ว!`,
+        notification_id,
+      ]
+    );
+
+    // อัปเดตสถานะคำขอสิทธิ์
+    await connection.execute(
+      "UPDATE access_requests SET status = ? WHERE child_id = ? AND supervisor_id = ?",
+      ["rejected", child_id, supervisor_id]
+    );
+
+    // 🚫 เพิ่ม Notification ลงในฐานข้อมูล
+    await connection.execute(
+      "INSERT INTO notifications (user_id, message, supervisor_id, child_id, template_id, status) VALUES (?, ?, ?, ?, ?, ?)",
+      [
+        supervisor_id,
+        "🚫 การขอเข้าถึงข้อมูลของเด็กไม่ได้รับการอนุมัติ!",
+        supervisor_id,
+        child_id,
+        4,
+        "unread",
+      ]
+    );
+
+    // ค้นหา Expo Push Token ของ Supervisor
+    const [supervisorSend] = await connection.execute(
+      "SELECT expo_push_token FROM expo_tokens WHERE user_id = ?",
+      [supervisor_id]
+    );
+
+    if (!supervisorSend.length) {
+      return res.status(404).json({ message: "Supervisor not found" });
+    }
+
+    const supervisorPushToken = supervisorSend[0].expo_push_token;
+
+    if (supervisorPushToken) {
+      // ✅ ส่ง Push Notification ไปยังผู้ดูแล
+      await sendPushNotification(
+        supervisorPushToken,
+        "🚫 การขอเข้าถึงข้อมูลของเด็กไม่ได้รับการอนุมัติ!"
+      );
+    }
+
+    connection.release();
+
+    return res.status(200).json({
+      message:
+        "Access request rejected, notification saved, and push sent to supervisor",
+    });
+  } catch (err) {
+    console.error("Error rejected access request:", err);
+    return res.status(500).json({ message: "Error rejected access request" });
+  }
+};
+
 // saveExpoPushToken
 const saveExpoPushToken = async (req, res) => {
   const { user_id, expoPushToken } = req.body;
@@ -318,4 +403,5 @@ module.exports = {
   saveExpoPushToken,
   sendAssessmentReminder,
   markNotificationAsRead,
+  rejectAccessRequest,
 };

@@ -12,6 +12,9 @@ const {
 // Route approveAccessRequest
 router.post("/appprove-access-request", approveAccessRequest);
 
+// Route rejectAccessReqeust
+router.post("/reject-access-request", rejectAccessRequest);
+
 // Route getAllNotifications
 router.get("/get-all-notificate", getAllNotifications);
 
