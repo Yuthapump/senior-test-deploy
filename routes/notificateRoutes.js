@@ -7,6 +7,7 @@ const {
   getAllNotifications,
   saveExpoPushToken,
   markNotificationAsRead,
+  rejectAccessRequest,
 } = require("../controllers/notificateController");
 
 // Route approveAccessRequest
