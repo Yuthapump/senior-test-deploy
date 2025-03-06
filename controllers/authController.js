@@ -78,45 +78,46 @@ const register = async (req, res) => {
 
 // login function
 const login = async (req, res) => {
-  console.log("Login Data: ", req.body);
-  const { userName, password } = req.body;
+  const { userNameOrEmail, password } = req.body;
 
-  if (!userName || !password) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Missing username or password" });
+  if (!userNameOrEmail || !password) {
+    return res.status(400).json({
+      success: false,
+      message: "Missing username/email or password",
+    });
   }
 
+  let connection;
   try {
-    const connection = await pool.getConnection(); // ใช้ pool เพื่อเชื่อมต่อฐานข้อมูล
+    connection = await pool.getConnection();
 
-    // ดำเนินการค้นหาผู้ใช้
+    // ✅ เช็คจากทั้ง userName หรือ email
     const [results] = await connection.execute(
-      "SELECT * FROM users WHERE LOWER(userName) = LOWER(?)",
-      [userName]
+      "SELECT * FROM users WHERE LOWER(userName) = LOWER(?) OR LOWER(email) = LOWER(?)",
+      [userNameOrEmail, userNameOrEmail]
     );
 
     if (results.length === 0) {
-      connection.release(); // คืน connection กลับไปที่ pool
+      connection.release();
       return res.status(401).json({
         success: false,
-        message: "Invalid username or password",
+        message: "Invalid username/email or password",
       });
     }
 
     const user = results[0];
-    console.log("User:", user); // ตรวจสอบข้อมูลของ user
 
+    // ✅ ตรวจสอบ password
     const match = await bcrypt.compare(password, user.password);
-
     if (!match) {
-      connection.release(); // คืน connection กลับไปที่ pool
+      connection.release();
       return res.status(401).json({
         success: false,
-        message: "Invalid username or password",
+        message: "Invalid username/email or password",
       });
     }
 
+    // ✅ สร้าง JWT Token
     const token = jwt.sign(
       {
         userId: user.user_id,
@@ -129,26 +130,27 @@ const login = async (req, res) => {
       { expiresIn: "1h" }
     );
 
-    // for logging
-    console.log("Login successful");
-    console.log("User:", user);
-    console.log("Token:", token);
-
-    connection.release(); // คืน connection กลับไปที่ pool
-
+    connection.release();
     return res.status(200).json({
       success: true,
-      token,
-      userId: user.user_id,
-      userName: user.userName,
-      email: user.email,
-      phoneNumber: user.phoneNumber,
-      role: user.role,
       message: "Login successful",
+      token,
+      user: {
+        userId: user.user_id,
+        userName: user.userName,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        role: user.role,
+      },
     });
   } catch (error) {
-    console.error("Server error:", error);
-    return res.status(500).json({ success: false, message: "Server error" });
+    console.error("Error during login:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  } finally {
+    if (connection) connection.release();
   }
 };
 
