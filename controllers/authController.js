@@ -32,6 +32,19 @@ const register = async (req, res) => {
         .json({ success: false, message: "User already exists" });
     }
 
+    // Check if email already exists
+    const [existingEmail] = await connection.execute(
+      "SELECT * FROM users WHERE email = ?",
+      [email]
+    );
+
+    if (existingEmail.length > 0) {
+      connection.release(); // Release connection back to the pool
+      return res
+        .status(409)
+        .json({ success: false, message: "Email already exists" });
+    }
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
