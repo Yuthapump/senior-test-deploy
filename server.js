@@ -20,6 +20,24 @@ const {
 const app = express();
 const port = process.env.PORT;
 
+// === Middleware สำหรับ CORS ===
+app.use(
+  cors({
+    origin: [
+      process.env.CORS_ORIGIN ||
+        "https://senior-test-deploy-production-1362.up.railway.app",
+    ],
+    methods: ["GET", "POST", "PUT"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// === Middleware สำหรับ JSON ===
+app.use(express.json());
+
+// Serve static files from 'uploads' folder
+app.use("/uploads", express.static("uploads"));
+
 // === ตั้งค่า Multer ===
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -80,7 +98,7 @@ app.disable("x-powered-by");
 app.set("trust proxy", 1);
 
 // === ✅ ป้องกันการส่งคำขอโดยไม่ได้รับอนุญาตจากผู้ใช้ (CSRF Attack) ===
-app.use(csrf());
+// app.use(csrf());
 
 // === ✅ ตั้งค่า Rate Limit เพื่อป้องกันการโจมตี DDoS ====
 const limiter = rateLimit({
@@ -131,24 +149,6 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
-
-// === Middleware สำหรับ CORS ===
-app.use(
-  cors({
-    origin: [
-      process.env.CORS_ORIGIN ||
-        "https://senior-test-deploy-production-1362.up.railway.app",
-    ],
-    methods: ["GET", "POST", "PUT"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
-
-// === Middleware สำหรับ JSON ===
-app.use(express.json());
-
-// Serve static files from 'uploads' folder
-app.use("/uploads", express.static("uploads"));
 
 // === Routes ===
 // app.use("/api/auth", authRoutes);
