@@ -5,35 +5,17 @@ const path = require("path");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const jwt = require("jsonwebtoken");
+const csrf = require("csurf");
 require("dotenv").config();
-
 const authRoutes = require("./routes/authRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const childRoutes = require("./routes/childRoutes");
 const assessmentRoutes = require("./routes/assessmentRoutes");
 const roomRoutes = require("./routes/roomRoutes");
 const notificateRoutes = require("./routes/notificateRoutes");
-
 const {
   sendAssessmentReminder,
 } = require("./controllers/notificateController");
-
-const app = express();
-const port = process.env.PORT;
-
-// === ✅ บอกให้ Express เชื่อมต่อผ่าน Proxy ===
-app.set("trust proxy", 1);
-
-// === ✅ ตั้งค่า Rate Limit เพื่อป้องกันการโจมตี DDoS ====
-const limiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // ลดเวลาลงเหลือ 5 นาที
-  max: 2000, // เพิ่ม requests limit เป็น 2000 ต่อ IP
-  message: "Too many requests, please try again later.",
-});
-app.use(limiter);
-
-// === Middleware สำหรับเพิ่มความปลอดภัยด้วย Helmet ===
-app.use(helmet());
 
 // === ตั้งค่า Multer ===
 const storage = multer.diskStorage({
@@ -80,6 +62,37 @@ app.post("/api/upload", (req, res) => {
   });
 });
 
+const app = express();
+const port = process.env.PORT;
+
+// === ✅ ป้องกันข้อมูลที่ถูกดักจับระหว่างการส่ง (MITM Attack) ===
+app.use((req, res, next) => {
+  if (!req.secure) {
+    return res.redirect("https://" + req.headers.host + req.url);
+  }
+  next();
+});
+
+// === ปิด X-Powered-By Header เพื่อไม่ให้เปิดเผยข้อมูล Framework (เพื่อป้องกันผู้โจมตีรู้ว่าใช้ Express) ===
+app.disable("x-powered-by");
+
+// === ✅ บอกให้ Express เชื่อมต่อผ่าน Proxy ===
+app.set("trust proxy", 1);
+
+// === ✅ ป้องกันการส่งคำขอโดยไม่ได้รับอนุญาตจากผู้ใช้ (CSRF Attack) ===
+app.use(csrf());
+
+// === ✅ ตั้งค่า Rate Limit เพื่อป้องกันการโจมตี DDoS ====
+const limiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // time 5 min
+  max: 2000, // requests limit by IP
+  message: "Too many requests, please try again later.",
+});
+app.use(limiter);
+
+// === Middleware สำหรับเพิ่มความปลอดภัยด้วย Helmet ===
+app.use(helmet());
+
 // เสิร์ฟไฟล์ static จากโฟลเดอร์ `public`
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -90,7 +103,7 @@ app.use(
 );
 
 app.get("/reset-password", (req, res) => {
-  const { token } = req.query; // รับ token จาก query parameter
+  const { token } = req.query;
 
   if (!token) {
     return res.status(400).send("Invalid request: Missing token");
@@ -122,7 +135,10 @@ const authenticateToken = (req, res, next) => {
 // === Middleware สำหรับ CORS ===
 app.use(
   cors({
-    origin: [process.env.CORS_ORIGIN],
+    origin: [
+      process.env.CORS_ORIGIN ||
+        "https://senior-test-deploy-production-1362.up.railway.app",
+    ],
     methods: ["GET", "POST", "PUT"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })

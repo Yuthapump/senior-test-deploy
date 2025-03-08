@@ -652,7 +652,7 @@ const fetchNextAssessmentSupervisor = async (req, res) => {
     const updateQuery = `
       UPDATE assessment_supervisor
       SET status = 'passed'
-      WHERE supervisor_assessment_id = ? AND status = 'in_progress' OR status = 'not_passed'
+      WHERE supervisor_assessment_id = ? AND (status = 'in_progress' OR status = 'not_passed')
     `;
     const [updateResult] = await pool.query(updateQuery, [
       supervisor_assessment_id,
