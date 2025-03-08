@@ -17,6 +17,9 @@ const {
   sendAssessmentReminder,
 } = require("./controllers/notificateController");
 
+const app = express();
+const port = process.env.PORT;
+
 // === ตั้งค่า Multer ===
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -61,9 +64,6 @@ app.post("/api/upload", (req, res) => {
     res.status(200).json({ message: "File uploaded successfully!" });
   });
 });
-
-const app = express();
-const port = process.env.PORT;
 
 // === ✅ ป้องกันข้อมูลที่ถูกดักจับระหว่างการส่ง (MITM Attack) ===
 app.use((req, res, next) => {
