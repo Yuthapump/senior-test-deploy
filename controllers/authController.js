@@ -21,7 +21,7 @@ const register = async (req, res) => {
 
     // Check if user already exists
     const [existingUsers] = await connection.execute(
-      "SELECT * FROM users WHERE username = ?",
+      "SELECT * FROM users WHERE LOWER(username) = LOWER(?)",
       [userName]
     );
 
@@ -34,7 +34,7 @@ const register = async (req, res) => {
 
     // Check if email already exists
     const [existingEmail] = await connection.execute(
-      "SELECT * FROM users WHERE email = ?",
+      "SELECT * FROM users WHERE LOWER(email) = LOWER(?)",
       [email]
     );
 

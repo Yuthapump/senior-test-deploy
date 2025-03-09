@@ -868,6 +868,12 @@ const getSupervisorAssessmentsAllData = async (req, res) => {
         JSON_ARRAYAGG(
           CASE 
             WHEN status = 'not_passed' 
+            AND (
+                   (age_range REGEXP '^[0-9]+-[0-9]+$' 
+                   AND child_age_months >= CAST(SUBSTRING_INDEX(age_range, ' - ', -1) AS UNSIGNED)) 
+                   OR (age_range REGEXP '^[0-9]+$'
+                   AND child_age_months >= CAST(age_range AS UNSIGNED))
+                 ) 
             THEN JSON_OBJECT(
               'child_id', child_id,
               'firstName', child_first_name,
@@ -877,10 +883,8 @@ const getSupervisorAssessmentsAllData = async (req, res) => {
               'gender', gender,
               'childPic', childPic,
               'age_months', child_age_months
-            )
-            ELSE NULL 
-          END
-        ) AS not_passed_children
+            ) 
+        ) FILTER (WHERE status = 'not_passed') AS not_passed_children
       FROM LatestStatus
       WHERE row_num = 1
       GROUP BY aspect
