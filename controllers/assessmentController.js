@@ -883,8 +883,10 @@ const getSupervisorAssessmentsAllData = async (req, res) => {
               'gender', gender,
               'childPic', childPic,
               'age_months', child_age_months
-            ) 
-        ) FILTER (WHERE status = 'not_passed') AS not_passed_children
+            )
+            ELSE NULL 
+          END
+        ) AS not_passed_children
       FROM LatestStatus
       WHERE row_num = 1
       GROUP BY aspect
