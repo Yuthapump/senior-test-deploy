@@ -207,7 +207,6 @@ const addChildForSupervisor = async (req, res) => {
     supervisor_id,
     rooms_id,
   } = req.body;
-  const childPic = req.file ? path.normalize(req.file.path) : null; // รับไฟล์ภาพถ้ามี
 
   if (!firstName || !lastName || !birthday || !supervisor_id) {
     return res.status(400).json({ message: "Required fields are missing" });
@@ -247,6 +246,15 @@ const addChildForSupervisor = async (req, res) => {
       "SELECT * FROM children WHERE LOWER(firstName) = LOWER(?) AND LOWER(lastName) = LOWER(?) AND birthday = ?",
       [firstName, lastName, formattedBirthday]
     );
+
+    // กรณีไม่มีพบเด็ก
+    if (existingChild.length === 0) {
+      connection.release();
+      return res.status(404).json({
+        message:
+          "ไม่พบข้อมูลเด็กในระบบ กรุณาตรวจสอบว่าผู้ปกครองได้เพิ่มข้อมูลเด็กแล้วหรือยัง",
+      });
+    }
 
     if (existingChild.length > 0) {
       // ถ้ามีเด็กในระบบแล้ว
