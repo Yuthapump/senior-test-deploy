@@ -267,7 +267,7 @@ const addChildForSupervisor = async (req, res) => {
       console.log("formattedBirthday:", formattedBirthday);
       console.log("gender:", gender);
       console.log("supervisor_id:", supervisor_id);
-      console.log("childPic:", childPic);
+      // console.log("childPic:", childPic);
 
       // ตรวจสอบสถานะการขอสิทธิ์จากผู้ปกครอง
       const [existingRequest] = await connection.execute(
@@ -394,7 +394,7 @@ const addChildForSupervisor = async (req, res) => {
         birthday: formattedBirthday,
         gender,
         supervisor_id,
-        childPic,
+        // childPic,
         insertId: result.insertId,
       },
     });
