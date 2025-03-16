@@ -91,12 +91,12 @@ app.post("/api/upload", (req, res) => {
 app.use(cookieParser());
 
 // === ✅ ป้องกันข้อมูลที่ถูกดักจับระหว่างการส่ง (MITM Attack) ===
-// app.use((req, res, next) => {
-//   if (!req.secure) {
-//     return res.redirect("https://" + req.headers.host + req.url);
-//   }
-//   next();
-// });
+app.use((req, res, next) => {
+  if (!req.secure) {
+    return res.redirect("https://" + req.headers.host + req.url);
+  }
+  next();
+});
 
 // === ปิด X-Powered-By Header เพื่อไม่ให้เปิดเผยข้อมูล Framework (เพื่อป้องกันผู้โจมตีรู้ว่าใช้ Express) ===
 app.disable("x-powered-by");
@@ -159,8 +159,8 @@ app.use("/api/notifications", notificateRoutes);
 
 // === Send Warning Assessment per 2 weeks ===
 sendAssessmentReminder();
-// setInterval(sendAssessmentReminder, 24 * 60 * 60 * 1000);
-setInterval(sendAssessmentReminder, 10 * 60 * 1000); // for test 10 minutes
+setInterval(sendAssessmentReminder, 24 * 60 * 60 * 1000);
+// setInterval(sendAssessmentReminder, 10 * 60 * 1000); // for test 10 minutes
 
 // === Server Start ===
 app.listen(port, () => {

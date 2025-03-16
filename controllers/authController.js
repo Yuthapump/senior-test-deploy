@@ -185,23 +185,37 @@ const logout = async (req, res) => {
   console.log("refreshToken: ", refreshToken);
   console.log("user_id: ", user_id);
 
-  if (!refreshToken) {
-    return res.status(400).json({ message: "Refresh Token จำเป็นต้องส่งมา" });
-  }
-
   try {
     const connection = await pool.getConnection();
+
+    // 🔍 ตรวจสอบว่า Refresh Token มีอยู่จริงหรือไม่
+    const [rows] = await connection.execute(
+      "SELECT refresh_token FROM users WHERE refresh_token = ?",
+      [refreshToken]
+    );
+
+    // ✅ ถ้าไม่พบ Refresh Token หรือเป็น NULL ให้คืนค่า 200 OK
+    if (rows.length === 0 || rows[0].refresh_token === null) {
+      console.log("⚠️ ไม่พบ Refresh Token หรือเป็น NULL, ออกจากระบบสำเร็จ");
+      connection.release();
+      return res
+        .status(200)
+        .json({ message: "ออกจากระบบสำเร็จ (ไม่มี Refresh Token อยู่แล้ว)" });
+    }
+
+    // ✅ ล้างค่า refresh_token
     await connection.execute(
       "UPDATE users SET refresh_token = NULL WHERE refresh_token = ?",
       [refreshToken]
     );
+
+    // ✅ ล้างค่า expo_push_token
     await connection.execute(
       "UPDATE expo_tokens SET expo_push_token = NULL WHERE user_id = ?",
       [user_id]
     );
 
     connection.release();
-
     res.status(200).json({ message: "ออกจากระบบสำเร็จ" });
   } catch (error) {
     console.error("Logout error:", error);
