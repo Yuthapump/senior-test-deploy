@@ -5,6 +5,7 @@ const {
   login,
   forgetPassword,
   resetPassword,
+  logout,
 } = require("../controllers/authController");
 
 const router = express.Router();
@@ -14,6 +15,9 @@ router.post("/register", register);
 
 // Route for Login
 router.post("/login", login);
+
+// Route for Loout
+router.post("/logout", logout);
 
 // Route for Forget Password
 router.post("/forget-password", forgetPassword);

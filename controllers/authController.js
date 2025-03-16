@@ -181,9 +181,9 @@ const login = async (req, res) => {
 
 // logout
 const logout = async (req, res) => {
-  const { token } = req.body;
+  const { refreshToken, user_id } = req.body;
 
-  if (!token) {
+  if (!refreshToken) {
     return res.status(400).json({ message: "Refresh Token จำเป็นต้องส่งมา" });
   }
 
@@ -191,8 +191,13 @@ const logout = async (req, res) => {
     const connection = await pool.getConnection();
     await connection.execute(
       "UPDATE users SET refresh_token = NULL WHERE refresh_token = ?",
-      [token]
+      [refreshToken]
     );
+    await connection.execute(
+      "UPDATE expo_tokens SET expo_push_token = NULL WHERE user_id = ?",
+      [user_id]
+    );
+
     connection.release();
 
     res.status(200).json({ message: "ออกจากระบบสำเร็จ" });
@@ -319,4 +324,4 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { register, login, forgetPassword, resetPassword };
+module.exports = { register, login, forgetPassword, resetPassword, logout };
