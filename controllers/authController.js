@@ -74,15 +74,13 @@ const register = async (req, res) => {
       }
     );
 
-    const refreshToken = jwt.sign(
-      { userId: user.user_id },
-      process.env.JWT_REFRESH_SECRET,
-      { expiresIn: "30d" }
-    );
+    const refreshToken = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET, {
+      expiresIn: "30d",
+    });
 
     await connection.execute(
       "UPDATE users SET refresh_token = ? WHERE user_id = ?",
-      [refreshToken, user.user_id]
+      [refreshToken, userId]
     );
 
     return res.status(201).json({
