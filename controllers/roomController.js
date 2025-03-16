@@ -347,7 +347,7 @@ const deleteRoom = async (req, res) => {
 
     connection = await pool.getConnection();
 
-    // ตรวจสอบว่า supervisor เป็นเจ้าของห้องนี้หรือไม่
+    // ✅ ตรวจสอบว่า Supervisor เป็นเจ้าของห้องนี้หรือไม่
     const [room] = await connection.execute(
       `SELECT * FROM rooms WHERE rooms_id = ? AND supervisor_id = ?`,
       [rooms_id, supervisor_id]
@@ -359,17 +359,41 @@ const deleteRoom = async (req, res) => {
         .json({ message: "You do not have permission to delete this room" });
     }
 
-    // ลบเด็กทั้งหมดออกจากห้องก่อน
+    // ✅ ดึงรายชื่อเด็กในห้องนี้
+    const [children] = await connection.execute(
+      `SELECT child_id FROM rooms_children WHERE rooms_id = ?`,
+      [rooms_id]
+    );
+
+    // ✅ ลบเด็กทั้งหมดออกจากห้องก่อน
     await connection.execute(`DELETE FROM rooms_children WHERE rooms_id = ?`, [
       rooms_id,
     ]);
 
-    // ลบห้องออกจากระบบ
+    // ✅ ลบห้องออกจากระบบ
     await connection.execute(`DELETE FROM rooms WHERE rooms_id = ?`, [
       rooms_id,
     ]);
 
-    return res.status(200).json({ message: "Room deleted successfully" });
+    // ✅ ตรวจสอบว่าเด็กเหล่านี้ยังอยู่ในห้องอื่นหรือไม่
+    for (const child of children) {
+      const [otherRooms] = await connection.execute(
+        `SELECT * FROM rooms_children WHERE child_id = ?`,
+        [child.child_id]
+      );
+
+      // ถ้าเด็กไม่มีห้องอื่น ให้ลบความสัมพันธ์กับครู
+      if (otherRooms.length === 0) {
+        await connection.execute(
+          `DELETE FROM supervisor_children WHERE child_id = ?`,
+          [child.child_id]
+        );
+      }
+    }
+
+    return res
+      .status(200)
+      .json({ message: "Room and related data deleted successfully" });
   } catch (error) {
     console.error("Error deleting room:", error);
     return res.status(500).json({ message: "Internal server error" });

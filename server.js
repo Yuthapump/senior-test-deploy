@@ -16,6 +16,10 @@ const notificateRoutes = require("./routes/notificateRoutes");
 const {
   sendAssessmentReminder,
 } = require("./controllers/notificateController");
+const {
+  refreshAccessToken,
+  authenticateToken,
+} = require("./middlewares/authMiddleware");
 
 const app = express();
 const port = process.env.PORT;
@@ -84,12 +88,12 @@ app.post("/api/upload", (req, res) => {
 });
 
 // === ✅ ป้องกันข้อมูลที่ถูกดักจับระหว่างการส่ง (MITM Attack) ===
-app.use((req, res, next) => {
-  if (!req.secure) {
-    return res.redirect("https://" + req.headers.host + req.url);
-  }
-  next();
-});
+// app.use((req, res, next) => {
+//   if (!req.secure) {
+//     return res.redirect("https://" + req.headers.host + req.url);
+//   }
+//   next();
+// });
 
 // === ปิด X-Powered-By Header เพื่อไม่ให้เปิดเผยข้อมูล Framework (เพื่อป้องกันผู้โจมตีรู้ว่าใช้ Express) ===
 app.disable("x-powered-by");
@@ -132,39 +136,23 @@ app.get("/reset-password", (req, res) => {
   res.redirect(appLink);
 });
 
-// === Middleware สำหรับตรวจสอบ Token หรือ Authorization ===
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
-
-  if (!token) {
-    return res.status(401).json({ error: "Access denied. No token provided." });
-  }
-
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: "Invalid token." });
-    }
-    req.user = user; // เก็บข้อมูลผู้ใช้ที่ถอดรหัสได้ใน req.user
-    next();
-  });
-};
-
 // === Routes ===
-// app.use("/api/auth", authRoutes);
-// app.use("/api/profiles", authenticateToken, profileRoutes);
-// app.use("/api/childs", authenticateToken, childRoutes);
-// app.use("/api/assessments", authenticateToken, assessmentRoutes);
-// app.use("/api/rooms", authenticateToken, roomRoutes);
-// app.use("/api/notifications", authenticateToken, notificateRoutes);
-
-// === Routes ===
+app.use("/api/middlewares/refresh-token", refreshAccessToken);
 app.use("/api/auth", authRoutes);
-app.use("/api/profiles", profileRoutes);
-app.use("/api/childs", childRoutes);
-app.use("/api/assessments", assessmentRoutes);
-app.use("/api/rooms", roomRoutes);
-app.use("/api/notifications", notificateRoutes);
+app.use("/api/profiles", authenticateToken, profileRoutes);
+app.use("/api/childs", authenticateToken, childRoutes);
+app.use("/api/assessments", authenticateToken, assessmentRoutes);
+app.use("/api/rooms", authenticateToken, roomRoutes);
+app.use("/api/notifications", authenticateToken, notificateRoutes);
+
+// === Routes For Test ===
+// app.use("/api/middlewares/refreshtoken", refreshAccessToken);
+// app.use("/api/auth", authRoutes);
+// app.use("/api/profiles", profileRoutes);
+// app.use("/api/childs", childRoutes);
+// app.use("/api/assessments", assessmentRoutes);
+// app.use("/api/rooms", roomRoutes);
+// app.use("/api/notifications", notificateRoutes);
 
 // === Send Warning Assessment per 2 weeks ===
 sendAssessmentReminder();

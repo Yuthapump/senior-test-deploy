@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const { pool } = require("../config/db");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
+require("dotenv").config();
 
 // register function
 const register = async (req, res) => {
@@ -100,11 +101,10 @@ const login = async (req, res) => {
     });
   }
 
-  let connection;
-  try {
-    connection = await pool.getConnection();
+  console.log("📥 ข้อมูลที่ได้รับจาก Postman:", req.body); // ✅ ตรวจสอบค่าที่ได้รับ
 
-    // ✅ เช็คจากทั้ง userName หรือ email
+  try {
+    const connection = await pool.getConnection();
     const [results] = await connection.execute(
       "SELECT * FROM users WHERE LOWER(userName) = LOWER(?) OR LOWER(email) = LOWER(?)",
       [userNameOrEmail, userNameOrEmail]
@@ -120,7 +120,7 @@ const login = async (req, res) => {
 
     const user = results[0];
 
-    // ✅ ตรวจสอบ password
+    // ตรวจสอบรหัสผ่าน
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       connection.release();
@@ -130,17 +130,20 @@ const login = async (req, res) => {
       });
     }
 
-    // ✅ สร้าง JWT Token
-    const token = jwt.sign(
-      {
-        userId: user.user_id,
-        userName: user.userName,
-        email: user.email,
-        phoneNumber: user.phoneNumber,
-        role: user.role,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "30m" }
+    // ✅ สร้าง Access Token & Refresh Token
+    const token = jwt.sign({ userId: user.user_id }, process.env.JWT_SECRET, {
+      expiresIn: "30m",
+    });
+
+    const refreshToken = jwt.sign(
+      { userId: user.user_id },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: "30d" }
+    );
+
+    await connection.execute(
+      "UPDATE users SET refresh_token = ? WHERE user_id = ?",
+      [refreshToken, user.user_id]
     );
 
     connection.release();
@@ -148,6 +151,7 @@ const login = async (req, res) => {
       success: true,
       message: "Login successful",
       token,
+      refreshToken,
       user: {
         userId: user.user_id,
         userName: user.userName,
@@ -162,8 +166,29 @@ const login = async (req, res) => {
       success: false,
       message: "Internal server error",
     });
-  } finally {
-    if (connection) connection.release();
+  }
+};
+
+// logout
+const logout = async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ message: "Refresh Token จำเป็นต้องส่งมา" });
+  }
+
+  try {
+    const connection = await pool.getConnection();
+    await connection.execute(
+      "UPDATE users SET refresh_token = NULL WHERE refresh_token = ?",
+      [token]
+    );
+    connection.release();
+
+    res.status(200).json({ message: "ออกจากระบบสำเร็จ" });
+  } catch (error) {
+    console.error("Logout error:", error);
+    res.status(500).json({ message: "เกิดข้อผิดพลาดของเซิร์ฟเวอร์" });
   }
 };
 

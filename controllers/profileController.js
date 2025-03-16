@@ -297,6 +297,12 @@ const deleteChildForSupervisor = async (req, res) => {
       [child_id, supervisor_id]
     );
 
+    // 🔥 ลบความสัมพันธ์เด็กออกจาก `access_requests`
+    await connection.execute(
+      "DELETE FROM access_requests WHERE child_id = ? AND supervisor_id = ?",
+      [child_id, supervisor_id]
+    );
+
     await connection.commit(); // ✅ ยืนยันการลบทั้งหมด
     connection.release();
 
