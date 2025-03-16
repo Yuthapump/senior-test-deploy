@@ -19,6 +19,10 @@ const authenticateToken = async (req, res, next) => {
     if (err.name === "TokenExpiredError") {
       console.log("🔄 Access Token expired. Attempting refresh...");
 
+      // ตรวจสอบค่า Headers และ Cookies ก่อนใช้
+      console.log("🔎 Headers:", req.headers);
+      console.log("🔎 Cookies:", req.cookies);
+
       const refreshToken =
         req.headers["x-refresh-token"] || req.cookies.refreshToken;
       if (!refreshToken) {
