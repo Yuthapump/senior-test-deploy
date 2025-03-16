@@ -365,6 +365,18 @@ const deleteRoom = async (req, res) => {
       [rooms_id]
     );
 
+    // ✅ ลบข้อมูลการประเมินของเด็กทุกคนในห้องนี้
+    await connection.execute(
+      `DELETE FROM assessment_supervisor WHERE child_id IN (SELECT child_id FROM rooms_children WHERE rooms_id = ?)`,
+      [rooms_id]
+    );
+
+    // ✅ ลบคำขอสิทธิ์ของเด็กทุกคนในห้องนี้
+    await connection.execute(
+      `DELETE FROM access_requests WHERE child_id IN (SELECT child_id FROM rooms_children WHERE rooms_id = ?)`,
+      [rooms_id]
+    );
+
     // ✅ ลบเด็กทั้งหมดออกจากห้องก่อน
     await connection.execute(`DELETE FROM rooms_children WHERE rooms_id = ?`, [
       rooms_id,
