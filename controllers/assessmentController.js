@@ -390,13 +390,13 @@ const updateAssessmentStatus = async (req, res) => {
     const [updateResult] = await pool.query(updateQuery, [assessment_id]);
 
     if (updateResult.affectedRows === 0) {
-      return res.status(404).json({
-        message: "Supervisor assessment not found or already completed",
+      return res.status(200).json({
+        message: "assessment not found or already completed",
       });
     }
 
     return res.status(200).json({
-      message: "Supervisor assessment updated to 'not_passed' successfully",
+      message: "อัปเดตสถานะการประเมินเป็น 'not_passed' สำเร็จ",
       updated_assessment_id: assessment_id,
     });
   } catch (error) {
@@ -797,8 +797,8 @@ const updateAssessmentStatusNotPassed = async (req, res) => {
     ]);
 
     if (updateResult.affectedRows === 0) {
-      return res.status(404).json({
-        message: "ไม่พบการประเมินที่กำลังดำเนินการ หรืออัปเดตสถานะไม่สำเร็จ",
+      return res.status(200).json({
+        message: "assessment not found or already completed",
       });
     }
 
