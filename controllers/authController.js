@@ -70,14 +70,26 @@ const register = async (req, res) => {
       },
       process.env.JWT_SECRET,
       {
-        expiresIn: "1h",
+        expiresIn: "30m",
       }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user.user_id },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: "30d" }
+    );
+
+    await connection.execute(
+      "UPDATE users SET refresh_token = ? WHERE user_id = ?",
+      [refreshToken, user.user_id]
     );
 
     return res.status(201).json({
       success: true,
       message: "Registration successful",
       token,
+      refreshToken,
       userId,
       userName,
       email,
@@ -132,7 +144,7 @@ const login = async (req, res) => {
 
     // ✅ สร้าง Access Token & Refresh Token
     const token = jwt.sign({ userId: user.user_id }, process.env.JWT_SECRET, {
-      expiresIn: "1m",
+      expiresIn: "30m",
     });
 
     const refreshToken = jwt.sign(
