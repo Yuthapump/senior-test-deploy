@@ -132,7 +132,7 @@ const login = async (req, res) => {
 
     // ✅ สร้าง Access Token & Refresh Token
     const token = jwt.sign({ userId: user.user_id }, process.env.JWT_SECRET, {
-      expiresIn: "30m",
+      expiresIn: "5m",
     });
 
     const refreshToken = jwt.sign(
