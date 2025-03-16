@@ -18,19 +18,18 @@ const authenticateToken = async (req, res, next) => {
 
     if (err.name === "TokenExpiredError") {
       console.log("🔄 Access Token expired. Attempting refresh...");
-
-      // ตรวจสอบค่า Headers และ Cookies ก่อนใช้
       console.log("🔎 Headers:", req.headers);
       console.log("🔎 Cookies:", req.cookies);
 
       const refreshToken =
         req.headers["x-refresh-token"] || req.cookies.refreshToken;
+
       if (!refreshToken) {
         return res.status(401).json({ error: "Refresh Token required." });
       }
 
       try {
-        // Verify Refresh Token
+        // ตรวจสอบ Refresh Token
         const decoded = jwt.verify(
           refreshToken,
           process.env.JWT_REFRESH_SECRET
@@ -46,7 +45,7 @@ const authenticateToken = async (req, res, next) => {
           return res.status(403).json({ error: "Invalid Refresh Token." });
         }
 
-        // Generate new Access Token
+        // ✅ ออก Access Token ใหม่
         const newAccessToken = jwt.sign(
           { userId: decoded.userId },
           process.env.JWT_SECRET,
@@ -54,11 +53,9 @@ const authenticateToken = async (req, res, next) => {
         );
 
         console.log("✅ Access Token refreshed successfully.");
-
-        // Send new Access Token in response header
         res.setHeader("x-new-access-token", newAccessToken);
         req.user = { userId: decoded.userId };
-        return next(); // 🚀 Proceed with request using new Access Token
+        return next();
       } catch (refreshError) {
         console.error(
           "❌ Refresh Token invalid or expired:",
@@ -97,14 +94,14 @@ const refreshAccessToken = async (req, res) => {
 
     const user = users[0];
 
-    // ✅ สร้าง Refresh Token ใหม่ (ขยายอายุออกไปอีก 30 วัน)
+    // ✅ ออก Refresh Token ใหม่
     const newRefreshToken = jwt.sign(
       { userId: user.user_id },
       process.env.JWT_REFRESH_SECRET,
-      { expiresIn: "30d" } // 🔄 ขยายอายุใหม่
+      { expiresIn: "30d" }
     );
 
-    // ✅ บันทึก Refresh Token ใหม่ลงในฐานข้อมูล
+    // ✅ บันทึก Refresh Token ใหม่ลงฐานข้อมูล
     await connection.execute(
       "UPDATE users SET refresh_token = ? WHERE user_id = ?",
       [newRefreshToken, user.user_id]
@@ -112,11 +109,11 @@ const refreshAccessToken = async (req, res) => {
 
     connection.release();
 
-    // ✅ สร้าง Access Token ใหม่ด้วย
+    // ✅ ออก Access Token ใหม่
     const newAccessToken = jwt.sign(
       { userId: user.user_id },
       process.env.JWT_SECRET,
-      { expiresIn: "30m" } // Access Token มีอายุ 30 นาที
+      { expiresIn: "30m" }
     );
 
     res
