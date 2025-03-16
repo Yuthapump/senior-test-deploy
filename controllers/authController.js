@@ -182,6 +182,8 @@ const login = async (req, res) => {
 // logout
 const logout = async (req, res) => {
   const { refreshToken, user_id } = req.body;
+  console.log("refreshToken: ", refreshToken);
+  console.log("user_id: ", user_id);
 
   if (!refreshToken) {
     return res.status(400).json({ message: "Refresh Token จำเป็นต้องส่งมา" });
