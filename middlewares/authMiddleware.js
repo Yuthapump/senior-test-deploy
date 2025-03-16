@@ -1,5 +1,6 @@
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
+const { pool } = require("../config/db");
 
 // === Middleware สำหรับตรวจสอบ Token หรือ Authorization ===
 const authenticateToken = async (req, res, next) => {
