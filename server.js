@@ -6,6 +6,7 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const jwt = require("jsonwebtoken");
 const csrf = require("csurf");
+const cookieParser = require("cookie-parser");
 require("dotenv").config();
 const authRoutes = require("./routes/authRoutes");
 const profileRoutes = require("./routes/profileRoutes");
@@ -86,6 +87,8 @@ app.post("/api/upload", (req, res) => {
     res.status(200).json({ message: "File uploaded successfully!" });
   });
 });
+
+app.use(cookieParser());
 
 // === ✅ ป้องกันข้อมูลที่ถูกดักจับระหว่างการส่ง (MITM Attack) ===
 // app.use((req, res, next) => {
