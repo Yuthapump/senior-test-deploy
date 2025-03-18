@@ -14,6 +14,7 @@ const childRoutes = require("./routes/childRoutes");
 const assessmentRoutes = require("./routes/assessmentRoutes");
 const roomRoutes = require("./routes/roomRoutes");
 const notificateRoutes = require("./routes/notificateRoutes");
+const adminRoutes = require("./routes/adminRoute");
 const {
   sendAssessmentReminder,
 } = require("./controllers/notificateController");
@@ -141,11 +142,12 @@ app.get("/reset-password", (req, res) => {
 
 // === Routes ===
 app.use("/api/middlewares/refresh-token", refreshAccessToken);
+app.use("/api/admin", adminRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/profiles", authenticateToken, profileRoutes);
+app.use("/api/profiles", profileRoutes);
 app.use("/api/childs", childRoutes);
 app.use("/api/assessments", assessmentRoutes);
-app.use("/api/rooms", authenticateToken, roomRoutes);
+app.use("/api/rooms", roomRoutes);
 app.use("/api/notifications", notificateRoutes);
 
 // === Routes For Test ===
