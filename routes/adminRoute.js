@@ -5,6 +5,6 @@ const router = express.Router();
 const adminController = require("../controllers/adminController");
 
 // Route User List
-router.get("/get-user", adminController.user_list);
+router.get("/get-user/:userId", adminController.user_list);
 
 module.exports = router;

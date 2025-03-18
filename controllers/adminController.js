@@ -7,7 +7,7 @@ const { pool } = require("../config/db");
 const user_list = async (req, res) => {
   let connection;
   try {
-    const { userId } = req.body;
+    const { userId } = req.params;
 
     if (!userId) {
       return res
@@ -19,7 +19,7 @@ const user_list = async (req, res) => {
 
     // ตรวจสอบว่า user เป็น admin หรือไม่
     const [adminCheck] = await connection.execute(
-      `SELECT * FROM users WHERE id = ? AND role = 'admin'`,
+      `SELECT * FROM users WHERE user_id = ? AND role = 'admin'`,
       [userId]
     );
 
@@ -39,7 +39,7 @@ const user_list = async (req, res) => {
         phoneNumber, 
         profilePic, 
         role, 
-        create_at 
+        created_at 
       FROM users`
     );
 
