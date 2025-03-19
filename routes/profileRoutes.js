@@ -5,13 +5,14 @@ const router = express.Router();
 const profileController = require("../controllers/profileController");
 const { upload } = require("../controllers/profileController");
 
-// ♻️ Route สำหรับการอัปเดตภาพโปรไฟล์
+// ♻️ Route updateUserProfile
 router.put(
   "/update-profile",
   upload.single("profilePic"),
   profileController.updateUserProfile
 );
 
+// ♻️ Route updateProfileChild
 router.put(
   "/update-child-profile",
   upload.single("childPic"),

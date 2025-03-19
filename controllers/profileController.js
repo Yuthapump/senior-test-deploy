@@ -56,7 +56,7 @@ const updateUserProfile = async (req, res) => {
     const updatedUserName = userName !== undefined ? userName : null;
     const updatedEmail = email !== undefined ? email : null;
     const updatedPhoneNumber = phoneNumber !== undefined ? phoneNumber : null;
-    const updatedProfilePic = profilePic !== undefined ? profilePic : null;
+    const updatedProfilePic = profilePic ? JSON.stringify(profilePic) : null;
 
     // อัปเดตข้อมูลผู้ใช้
     await connection.execute(
@@ -64,7 +64,7 @@ const updateUserProfile = async (req, res) => {
        SET userName = COALESCE(?, userName), 
            email = COALESCE(?, email), 
            phoneNumber = COALESCE(?, phoneNumber), 
-           profilePic = COALESCE(?, profilePic) 
+           profilePic = CAST(COALESCE(?, profilePic) AS CHAR) 
        WHERE user_id = ?`,
       [
         updatedUserName,
