@@ -116,13 +116,13 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// === Middleware สำหรับเพิ่มความปลอดภัยด้วย Helmet ===
+// === Middleware Helmet ===
 app.use(helmet());
 
-// เสิร์ฟไฟล์ static จากโฟลเดอร์ `public`
+// serve file static from `public`
 app.use(express.static(path.join(__dirname, "public")));
 
-// ตรวจสอบว่า assetlinks.json เสิร์ฟได้
+// check assetlinks.json to serve
 app.use(
   "/.well-known",
   express.static(path.join(__dirname, "public/.well-known"))
@@ -135,7 +135,7 @@ app.get("/reset-password", (req, res) => {
     return res.status(400).send("Invalid request: Missing token");
   }
 
-  // ✅ Redirect ไปที่แอป (Deep Linking)
+  // Redirect (Deep Linking)
   const appLink = `dekdek://reset-password?token=${token}`;
   res.redirect(appLink);
 });

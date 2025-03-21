@@ -209,11 +209,11 @@ const logout = async (req, res) => {
       [refreshToken]
     );
 
-    // ✅ ล้างค่า expo_push_token
-    await connection.execute(
-      "UPDATE expo_tokens SET expo_push_token = NULL WHERE user_id = ?",
-      [user_id]
-    );
+    // // ✅ ล้างค่า expo_push_token
+    // await connection.execute(
+    //   "UPDATE expo_tokens SET expo_push_token = NULL WHERE user_id = ?",
+    //   [user_id]
+    // );
 
     connection.release();
     res.status(200).json({ message: "ออกจากระบบสำเร็จ" });
