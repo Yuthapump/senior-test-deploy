@@ -1125,56 +1125,80 @@ const getAssessmentsByChildPRforSP = async (req, res) => {
 };
 
 const getAssessmentsByChildHistory = async (req, res) => {
-  const { supervisor_id, child_id, aspect } = req.params;
+  const { child_id, aspect } = req.params;
+  const { supervisor_id, parent_id } = req.body;
 
-  if (!supervisor_id || !child_id || !aspect) {
+  if (!child_id || !aspect) {
     return res
       .status(400)
-      .json({ message: "supervisor_id, child_id และ aspect จำเป็นต้องระบุ" });
+      .json({ message: "child_id และ aspect จำเป็นต้องระบุ" });
   }
 
   let connection;
   try {
     connection = await pool.getConnection();
 
-    // ✅ ตรวจสอบสิทธิ์ว่า supervisor ดูแลเด็กคนนี้หรือไม่
-    const [childCheck] = await connection.execute(
-      `SELECT * FROM supervisor_children 
-       WHERE supervisor_id = ? AND child_id = ?`,
-      [supervisor_id, child_id]
-    );
-
-    if (childCheck.length === 0) {
-      return res
-        .status(403)
-        .json({ message: "คุณไม่มีสิทธิ์ดูข้อมูลของเด็กคนนี้" });
+    // ✅ 1. ตรวจสอบสิทธิ์ว่าใครเป็นคนดึงข้อมูล
+    if (supervisor_id) {
+      const [check] = await connection.execute(
+        `SELECT * FROM supervisor_children WHERE supervisor_id = ? AND child_id = ?`,
+        [supervisor_id, child_id]
+      );
+      if (check.length === 0) {
+        return res.status(403).json({
+          message: "ไม่มีสิทธิ์เข้าถึงข้อมูลเด็กสำหรับ supervisor นี้",
+        });
+      }
+    } else if (parent_id) {
+      const [check] = await connection.execute(
+        `SELECT * FROM parent_children WHERE parent_id = ? AND child_id = ?`,
+        [parent_id, child_id]
+      );
+      if (check.length === 0) {
+        return res
+          .status(403)
+          .json({ message: "ไม่มีสิทธิ์เข้าถึงข้อมูลเด็กสำหรับ parent นี้" });
+      }
+    } else {
+      return res.status(400).json({
+        message: "ต้องระบุ supervisor_id หรือ parent_id อย่างน้อยหนึ่งอย่าง",
+      });
     }
 
-    // ✅ ดึงข้อมูลเด็ก
+    // ✅ 2. ดึงข้อมูลเด็ก
     const [childRows] = await connection.execute(
       `SELECT * FROM children WHERE child_id = ?`,
       [child_id]
     );
-
     if (childRows.length === 0) {
       return res.status(404).json({ message: "ไม่พบข้อมูลเด็ก" });
     }
 
-    // ✅ ดึงประวัติการประเมินทั้งหมดของ aspect นั้น ๆ
-    const [assessments] = await connection.execute(
-      `SELECT 
-        a.supervisor_assessment_id AS assessment_id,
-        a.assessment_rank,
-        a.assessment_details_id,
-        a.assessment_date,
-        a.status
-       FROM assessment_supervisor a
-       WHERE a.child_id = ? AND a.supervisor_id = ? AND a.aspect = ?
-       ORDER BY a.assessment_rank ASC`,
-      [child_id, supervisor_id, aspect]
-    );
+    // ✅ 3. ดึงประวัติการประเมินจากตารางที่เหมาะสม
+    let assessments = [];
+    if (supervisor_id) {
+      [assessments] = await connection.execute(
+        `SELECT a.supervisor_assessment_id AS assessment_id,
+                a.assessment_rank, a.assessment_details_id, 
+                a.assessment_date, a.status
+         FROM assessment_supervisor a
+         WHERE a.child_id = ? AND a.supervisor_id = ? AND a.aspect = ?
+         ORDER BY a.assessment_date DESC`,
+        [child_id, supervisor_id, aspect]
+      );
+    } else if (parent_id) {
+      [assessments] = await connection.execute(
+        `SELECT a.assessment_id,
+                a.assessment_rank, a.assessment_details_id, 
+                a.assessment_date, a.status
+         FROM assessments a
+         WHERE a.child_id = ? AND a.aspect = ?
+         ORDER BY a.assessment_date DESC`,
+        [child_id, aspect]
+      );
+    }
 
-    // ✅ ดึงรายละเอียด assessment_details
+    // ✅ 4. ดึงรายละเอียดของ assessment_details
     for (let i = 0; i < assessments.length; i++) {
       const [details] = await connection.execute(
         `SELECT * FROM assessment_details WHERE assessment_details_id = ?`,

@@ -82,8 +82,8 @@ router.get(
   assessmentController.getAssessmentsByChildPRforSP
 );
 
-router.get(
-  "/assessments-history-supervisor/:supervisor_id/:child_id/:aspect",
+router.post(
+  "/assessments-history-supervisor/:child_id/:aspect",
   assessmentController.getAssessmentsByChildHistory
 );
 
