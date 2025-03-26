@@ -76,4 +76,10 @@ router.get(
   assessmentController.getAssessmentsByChildForSupervisor
 );
 
+// Route to getAssessmentsByChildPRforSP
+router.get(
+  "/assessments-child-supervisor-pr/:child_id",
+  assessmentController.getAssessmentsByChildPRforSP
+);
+
 module.exports = router;

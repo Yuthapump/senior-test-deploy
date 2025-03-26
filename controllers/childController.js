@@ -331,7 +331,7 @@ const addChildForSupervisor = async (req, res) => {
         // ส่ง Push Notification
         await sendPushNotification(
           expoPushToken,
-          `คุณ ${supervisorName} ขอเข้าถึงข้อมูลของ ${firstName} ${lastName} เพื่อใช้ในการติดตามและประเมินพัฒนาการ`
+          `คุณ ${supervisorName} ได้ร้องขอสิทธิ์การเข้าถึงข้อมูลของ ${firstName} ${lastName} รวมถึงผลการประเมินพัฒนาการของเด็ก เพื่อใช้ในการติดตามและประเมินพัฒนาการอย่างเหมาะสม`
         );
       } else {
         console.error(`Expo Push Token not found for user ID: ${parent_id}`);

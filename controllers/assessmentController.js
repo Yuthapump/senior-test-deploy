@@ -1049,6 +1049,81 @@ const getAssessmentsByChildForSupervisor = async (req, res) => {
   }
 };
 
+// getAssessmentsByChildPRforSP
+const getAssessmentsByChildPRforSP = async (req, res) => {
+  const { child_id } = req.params;
+
+  if (!child_id) {
+    return res.status(400).json({ message: "child_id is required" });
+  }
+
+  let connection;
+  try {
+    connection = await pool.getConnection();
+
+    // ✅ ค้นหา parent_id จาก child_id
+    const [parentRows] = await connection.execute(
+      `SELECT parent_id 
+       FROM parent_children 
+       WHERE child_id = ? 
+       LIMIT 1`,
+      [child_id]
+    );
+
+    if (parentRows.length === 0) {
+      return res.status(404).json({ message: "ไม่พบ parent ของเด็กคนนี้" });
+    }
+
+    const parent_id = parentRows[0].parent_id;
+
+    // ✅ ดึงข้อมูลเด็ก
+    const [childRows] = await connection.execute(
+      `SELECT * FROM children WHERE child_id = ?`,
+      [child_id]
+    );
+
+    if (childRows.length === 0) {
+      return res.status(404).json({ message: "ไม่พบข้อมูลเด็ก" });
+    }
+
+    // ✅ ดึงข้อมูลการประเมิน
+    const [assessments] = await connection.execute(
+      `SELECT a.assessment_id, a.assessment_rank, a.aspect, 
+              a.assessment_details_id, a.assessment_date, a.status 
+       FROM assessments a 
+       WHERE a.child_id = ? AND (a.status = 'in_progress' OR a.status = 'passed_all')`,
+      [child_id]
+    );
+
+    // ✅ ดึงรายละเอียดของ assessment_details
+    for (let i = 0; i < assessments.length; i++) {
+      const [details] = await connection.execute(
+        `SELECT * FROM assessment_details WHERE assessment_details_id = ?`,
+        [assessments[i].assessment_details_id]
+      );
+      assessments[i].details = details.length > 0 ? details[0] : null;
+    }
+
+    connection.release();
+
+    return res.status(200).json({
+      message: "ดึงข้อมูลการประเมินของเด็กสำเร็จ (โดย Supervisor ผ่าน Parent)",
+      parent_id,
+      child: {
+        ...childRows[0],
+        assessments,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching child assessment data:", error);
+    return res
+      .status(500)
+      .json({ message: "เกิดข้อผิดพลาดในการดึงข้อมูลการประเมิน" });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
 module.exports = {
   getAssessmentsByAspect,
   getAssessmentsByChild,
@@ -1062,4 +1137,5 @@ module.exports = {
   getAssessmentsByChildForSupervisor,
   updateAssessmentStatusNotPassed,
   getSupervisorAssessmentsAllDataMoreDetails,
+  getAssessmentsByChildPRforSP,
 };
