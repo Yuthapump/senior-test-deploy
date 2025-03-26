@@ -1124,6 +1124,84 @@ const getAssessmentsByChildPRforSP = async (req, res) => {
   }
 };
 
+const getAssessmentsByChildHistory = async (req, res) => {
+  const { supervisor_id, child_id, aspect } = req.params;
+
+  if (!supervisor_id || !child_id || !aspect) {
+    return res
+      .status(400)
+      .json({ message: "supervisor_id, child_id และ aspect จำเป็นต้องระบุ" });
+  }
+
+  let connection;
+  try {
+    connection = await pool.getConnection();
+
+    // ✅ ตรวจสอบสิทธิ์ว่า supervisor ดูแลเด็กคนนี้หรือไม่
+    const [childCheck] = await connection.execute(
+      `SELECT * FROM supervisor_children 
+       WHERE supervisor_id = ? AND child_id = ?`,
+      [supervisor_id, child_id]
+    );
+
+    if (childCheck.length === 0) {
+      return res
+        .status(403)
+        .json({ message: "คุณไม่มีสิทธิ์ดูข้อมูลของเด็กคนนี้" });
+    }
+
+    // ✅ ดึงข้อมูลเด็ก
+    const [childRows] = await connection.execute(
+      `SELECT * FROM children WHERE child_id = ?`,
+      [child_id]
+    );
+
+    if (childRows.length === 0) {
+      return res.status(404).json({ message: "ไม่พบข้อมูลเด็ก" });
+    }
+
+    // ✅ ดึงประวัติการประเมินทั้งหมดของ aspect นั้น ๆ
+    const [assessments] = await connection.execute(
+      `SELECT 
+        a.supervisor_assessment_id AS assessment_id,
+        a.assessment_rank,
+        a.assessment_details_id,
+        a.assessment_date,
+        a.status
+       FROM assessment_supervisor a
+       WHERE a.child_id = ? AND a.supervisor_id = ? AND a.aspect = ?
+       ORDER BY a.assessment_rank ASC`,
+      [child_id, supervisor_id, aspect]
+    );
+
+    // ✅ ดึงรายละเอียด assessment_details
+    for (let i = 0; i < assessments.length; i++) {
+      const [details] = await connection.execute(
+        `SELECT * FROM assessment_details WHERE assessment_details_id = ?`,
+        [assessments[i].assessment_details_id]
+      );
+      assessments[i].details = details.length > 0 ? details[0] : null;
+    }
+
+    connection.release();
+
+    return res.status(200).json({
+      message: "ดึงประวัติการประเมินของเด็กสำเร็จ",
+      child: {
+        ...childRows[0],
+        assessments,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching child assessment history:", error);
+    return res
+      .status(500)
+      .json({ message: "เกิดข้อผิดพลาดในการดึงประวัติการประเมิน" });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
 module.exports = {
   getAssessmentsByAspect,
   getAssessmentsByChild,
@@ -1138,4 +1216,5 @@ module.exports = {
   updateAssessmentStatusNotPassed,
   getSupervisorAssessmentsAllDataMoreDetails,
   getAssessmentsByChildPRforSP,
+  getAssessmentsByChildHistory,
 };
