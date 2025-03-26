@@ -83,7 +83,7 @@ router.get(
 );
 
 router.post(
-  "/assessments-history-supervisor/:child_id/:aspect",
+  "/assessments-history/:child_id/:aspect",
   assessmentController.getAssessmentsByChildHistory
 );
 
