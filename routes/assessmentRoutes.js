@@ -92,4 +92,9 @@ router.post(
   assessmentController.updateAssessmentStatusRetryPassed
 );
 
+router.post(
+  "/assessments-update-retry-not-passed",
+  assessmentController.updateAssessmentStatusRetryNotPassed
+);
+
 module.exports = router;
