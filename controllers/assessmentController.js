@@ -1180,7 +1180,7 @@ const getAssessmentsByChildHistory = async (req, res) => {
     let assessments = [];
     if (supervisor_id) {
       [assessments] = await connection.execute(
-        `SELECT a.supervisor_assessment_id AS assessment_id,
+        `SELECT a.supervisor_assessment_id,
                 a.assessment_rank, a.assessment_details_id, 
                 a.assessment_date, a.status
          FROM assessment_supervisor a
