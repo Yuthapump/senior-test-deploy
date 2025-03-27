@@ -1124,6 +1124,52 @@ const getAssessmentsByChildPRforSP = async (req, res) => {
   }
 };
 
+const updateAssessmentStatusRetryPassed = async (req, res) => {
+  const { assessment_id, supervisor_assessment_id } = req.body;
+
+  try {
+    if (assessment_id) {
+      const updateQuery = `UPDATE assessments
+      SET status = 'passed'
+      WHERE assessment_id = ?`;
+      const [updateResult] = await pool.query(updateQuery, [assessment_id]);
+      if (updateResult.affectedRows === 0) {
+        return res.status(200).json({
+          message: "assessment not found or already completed",
+        });
+      }
+    } else if (supervisor_assessment_id) {
+      const updateQuery = `UPDATE assessment_supervisor
+      SET status = 'passed'
+      WHERE supervisor_assessment_id = ? `;
+
+      const [updateResult] = await pool.query(updateQuery, [
+        supervisor_assessment_id,
+      ]);
+      if (updateResult.affectedRows === 0) {
+        return res.status(200).json({
+          message: "assessment not found or already completed",
+        });
+      }
+    }
+
+    // if (updateResult.affectedRows === 0) {
+    //   return res.status(200).json({
+    //     message: "assessment not found or already completed",
+    //   });
+    // }
+
+    return res.status(200).json({
+      message: "อัปเดตสถานะการประเมินเป็น 'passed' สำเร็จ",
+    });
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ error: "Failed to update supervisor assessment status" });
+  }
+};
+
 // ====================================================================================================================================================================================
 
 const getAssessmentsByChildHistory = async (req, res) => {
@@ -1243,4 +1289,5 @@ module.exports = {
   getSupervisorAssessmentsAllDataMoreDetails,
   getAssessmentsByChildPRforSP,
   getAssessmentsByChildHistory,
+  updateAssessmentStatusRetryPassed,
 };

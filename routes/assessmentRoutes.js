@@ -87,4 +87,9 @@ router.post(
   assessmentController.getAssessmentsByChildHistory
 );
 
+router.post(
+  "/assessments-update-retry-passed",
+  assessmentController.updateAssessmentStatusRetryPassed
+);
+
 module.exports = router;
