@@ -30,8 +30,8 @@ const port = process.env.PORT;
 app.use(
   cors({
     origin: [
-      process.env.CORS_ORIGIN ||
-        "https://senior-test-deploy-production-1362.up.railway.app",
+      process.env.CORS_ORIGIN || // change ตามที่ deploy
+        "http://localhost:4000",
     ],
     methods: ["GET", "POST", "PUT"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -100,10 +100,10 @@ app.use(cookieParser());
 // });
 
 // === ปิด X-Powered-By Header เพื่อไม่ให้เปิดเผยข้อมูล Framework (เพื่อป้องกันผู้โจมตีรู้ว่าใช้ Express) ===
-app.disable("x-powered-by");
+// app.disable("x-powered-by");
 
 // === ✅ บอกให้ Express เชื่อมต่อผ่าน Proxy ===
-app.set("trust proxy", 1);
+// app.set("trust proxy", 1);
 
 // === ✅ ป้องกันการส่งคำขอโดยไม่ได้รับอนุญาตจากผู้ใช้ (CSRF Attack) ===
 // app.use(csrf());
