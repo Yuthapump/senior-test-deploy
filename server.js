@@ -143,7 +143,7 @@ app.get("/reset-password", (req, res) => {
 // === Routes ===
 app.use("/api/middlewares/refresh-token", refreshAccessToken);
 app.use("/api/admin", adminRoutes);
-app.use("/api/auth", authenticateToken, authRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/profiles", profileRoutes);
 app.use("/api/childs", childRoutes);
 app.use("/api/assessments", assessmentRoutes);
