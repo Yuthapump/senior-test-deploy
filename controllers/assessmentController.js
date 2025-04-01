@@ -1003,7 +1003,7 @@ const getAssessmentsByChildForSupervisor = async (req, res) => {
 
     // ✅ ดึงการประเมินล่าสุดของแต่ละ `aspect` โดยเรียงลำดับ `not_passed` > `in_progress` > `passed_all` > อื่นๆ
     const [assessments] = await connection.execute(
-      `SELECT a.supervisor_assessment_id AS assessment_id, 
+      `SELECT a.supervisor_assessment_id, 
               a.assessment_rank, a.aspect, 
               a.assessment_details_id, a.assessment_date, a.status 
        FROM assessment_supervisor a 
