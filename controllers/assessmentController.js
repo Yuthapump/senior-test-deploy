@@ -338,12 +338,32 @@ const getAssessmentsByChild = async (req, res) => {
       return res.status(404).json({ message: "ไม่พบข้อมูลเด็ก" });
     }
 
-    // ✅ ดึงข้อมูล `in_progress` หรือ `passed_all`
+    // ✅ ดึงข้อมูลการประเมินล่าสุดของแต่ละ `aspect` โดยเรียงลำดับ `not_passed` > `in_progress` > `passed_all`
     const [assessments] = await connection.execute(
       `SELECT a.assessment_id, a.assessment_rank, a.aspect, 
               a.assessment_details_id, a.assessment_date, a.status 
        FROM assessments a 
-       WHERE a.child_id = ? AND (a.status = 'in_progress' OR a.status = 'passed_all')`,
+       WHERE a.child_id = ? AND (a.status = 'in_progress' OR a.status = 'passed_all')
+             AND a.assessment_rank = (
+               SELECT MIN(assessment_rank) 
+               FROM assessments 
+               WHERE child_id = a.child_id AND aspect = a.aspect
+                 AND status = (
+                   SELECT status 
+                   FROM assessments
+                   WHERE child_id = a.child_id AND aspect = a.aspect
+                   ORDER BY 
+                     CASE 
+                       WHEN status = 'not_passed' THEN 1
+                       WHEN status = 'in_progress' THEN 2
+                       WHEN status = 'passed_all' THEN 3
+                       ELSE 4
+                     END, 
+                     assessment_rank DESC
+                   LIMIT 1
+                 )
+             )
+       ORDER BY a.aspect ASC, a.assessment_rank DESC`,
       [child_id]
     );
 
@@ -1099,12 +1119,33 @@ const getAssessmentsByChildPRforSP = async (req, res) => {
       return res.status(404).json({ message: "ไม่พบข้อมูลเด็ก" });
     }
 
-    // ✅ ดึงข้อมูลการประเมิน
+    // ✅ ดึงการประเมินล่าสุดของแต่ละ `aspect` โดยเรียงลำดับ `not_passed` > `in_progress` > `passed_all` > อื่นๆ
     const [assessments] = await connection.execute(
       `SELECT a.assessment_id, a.assessment_rank, a.aspect, 
               a.assessment_details_id, a.assessment_date, a.status 
        FROM assessments a 
-       WHERE a.child_id = ? AND (a.status = 'in_progress' OR a.status = 'passed_all')`,
+       WHERE a.child_id = ? 
+             AND (a.status = 'not_passed' OR a.status = 'in_progress' OR a.status = 'passed_all')
+             AND a.assessment_rank = (
+               SELECT MIN(assessment_rank) 
+               FROM assessments 
+               WHERE child_id = a.child_id AND aspect = a.aspect
+                 AND status = (
+                   SELECT status 
+                   FROM assessments
+                   WHERE child_id = a.child_id AND aspect = a.aspect
+                   ORDER BY 
+                     CASE 
+                       WHEN status = 'not_passed' THEN 1
+                       WHEN status = 'in_progress' THEN 2
+                       WHEN status = 'passed_all' THEN 3
+                       ELSE 4
+                     END, 
+                     assessment_rank DESC
+                   LIMIT 1
+                 )
+             )
+       ORDER BY a.aspect ASC, a.assessment_rank DESC`,
       [child_id]
     );
 
@@ -1253,16 +1294,23 @@ const updateAssessmentStatusRetryPassed = async (req, res) => {
 
     let updateQuery = "";
     let queryParam = "";
+    let dateParam = new Date();
 
     if (assessment_id) {
-      updateQuery = `UPDATE assessments SET status = 'passed' WHERE assessment_id = ?`;
-      queryParam = assessment_id;
+      updateQuery = `
+        UPDATE assessments 
+        SET status = 'passed', assessment_date = ? 
+        WHERE assessment_id = ?`;
+      queryParam = [dateParam, assessment_id];
     } else if (supervisor_assessment_id) {
-      updateQuery = `UPDATE assessment_supervisor SET status = 'passed' WHERE supervisor_assessment_id = ?`;
-      queryParam = supervisor_assessment_id;
+      updateQuery = `
+        UPDATE assessment_supervisor 
+        SET status = 'passed', assessment_date = ? 
+        WHERE supervisor_assessment_id = ?`;
+      queryParam = [dateParam, supervisor_assessment_id];
     }
 
-    const [updateResult] = await pool.query(updateQuery, [queryParam]);
+    const [updateResult] = await pool.query(updateQuery, queryParam);
 
     if (updateResult.affectedRows === 0) {
       return res
@@ -1270,9 +1318,9 @@ const updateAssessmentStatusRetryPassed = async (req, res) => {
         .json({ message: "Assessment not found or already completed" });
     }
 
-    return res
-      .status(200)
-      .json({ message: "อัปเดตสถานะการประเมินเป็น 'passed' สำเร็จ" });
+    return res.status(200).json({
+      message: "อัปเดตสถานะการประเมินเป็น 'passed' และวันที่ประเมินสำเร็จ",
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to update assessment status" });
@@ -1291,13 +1339,14 @@ const updateAssessmentStatusRetryNotPassed = async (req, res) => {
 
     let updateQuery = "";
     let queryParam = "";
+    let dateParam = new Date();
 
     if (assessment_id) {
       updateQuery = `UPDATE assessments SET status = 'not_passed' WHERE assessment_id = ?`;
-      queryParam = assessment_id;
+      queryParam = [dateParam, assessment_id];
     } else if (supervisor_assessment_id) {
       updateQuery = `UPDATE assessment_supervisor SET status = 'not_passed' WHERE supervisor_assessment_id = ?`;
-      queryParam = supervisor_assessment_id;
+      queryParam = [dateParam, supervisor_assessment_id];
     }
 
     const [updateResult] = await pool.query(updateQuery, [queryParam]);
