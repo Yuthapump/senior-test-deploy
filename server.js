@@ -93,7 +93,7 @@ app.use(cookieParser());
 
 // === ✅ ป้องกันข้อมูลที่ถูกดักจับระหว่างการส่ง (MITM Attack) ===
 app.use((req, res, next) => {
-  if (!req.secure) {
+  if (req.headers["x-forwarded-proto"] !== "https") {
     return res.redirect("https://" + req.headers.host + req.url);
   }
   next();
