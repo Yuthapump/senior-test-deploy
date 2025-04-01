@@ -1004,29 +1004,29 @@ const getAssessmentsByChildForSupervisor = async (req, res) => {
     // ✅ ดึงการประเมินล่าสุดของแต่ละ `aspect` โดยเรียงลำดับ `not_passed` > `in_progress` > `passed_all` > อื่นๆ
     const [assessments] = await connection.execute(
       `SELECT a.supervisor_assessment_id, 
-              a.assessment_rank, a.aspect, 
-              a.assessment_details_id, a.assessment_date, a.status 
-       FROM assessment_supervisor a 
-       WHERE a.child_id = ? AND a.supervisor_id = ?
-             AND a.assessment_rank = (
-               SELECT MAX(assessment_rank) 
-               FROM assessment_supervisor 
-               WHERE child_id = a.child_id AND aspect = a.aspect
-                 AND status = (
-                   SELECT status FROM assessment_supervisor
-                   WHERE child_id = a.child_id AND aspect = a.aspect
-                   ORDER BY 
-                     CASE 
-                       WHEN status = 'not_passed' THEN 1
-                       WHEN status = 'in_progress' THEN 2
-                       WHEN status = 'passed_all' THEN 3
-                       ELSE 4
-                     END, 
-                     assessment_rank DESC
-                   LIMIT 1
-                 )
-             )
-       ORDER BY a.aspect ASC, a.assessment_rank DESC`,
+       a.assessment_rank, a.aspect, 
+       a.assessment_details_id, a.assessment_date, a.status 
+FROM assessment_supervisor a 
+WHERE a.child_id = ? AND a.supervisor_id = ?
+      AND a.assessment_rank = (
+        SELECT MIN(assessment_rank)
+        FROM assessment_supervisor 
+        WHERE child_id = a.child_id AND aspect = a.aspect
+          AND status = (
+            SELECT status FROM assessment_supervisor
+            WHERE child_id = a.child_id AND aspect = a.aspect
+            ORDER BY 
+              CASE 
+                WHEN status = 'not_passed' THEN 1
+                WHEN status = 'in_progress' THEN 2
+                WHEN status = 'passed_all' THEN 3
+                ELSE 4
+              END, 
+              assessment_rank DESC
+            LIMIT 1
+          )
+      )
+ORDER BY a.aspect ASC, a.assessment_rank DESC`,
       [child_id, supervisor_id]
     );
 
