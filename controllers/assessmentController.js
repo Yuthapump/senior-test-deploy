@@ -1342,10 +1342,16 @@ const updateAssessmentStatusRetryNotPassed = async (req, res) => {
     let dateParam = new Date();
 
     if (assessment_id) {
-      updateQuery = `UPDATE assessments SET status = 'not_passed' WHERE assessment_id = ?`;
+      updateQuery = `
+      UPDATE assessments 
+      SET status = 'not_passed', assessment_date = ?  
+      WHERE assessment_id = ?`;
       queryParam = [dateParam, assessment_id];
     } else if (supervisor_assessment_id) {
-      updateQuery = `UPDATE assessment_supervisor SET status = 'not_passed' WHERE supervisor_assessment_id = ?`;
+      updateQuery = `
+      UPDATE assessment_supervisor 
+      SET status = 'not_passed', assessment_date = ?  
+      WHERE supervisor_assessment_id = ?`;
       queryParam = [dateParam, supervisor_assessment_id];
     }
 
