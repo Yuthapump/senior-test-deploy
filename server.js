@@ -109,12 +109,12 @@ app.use((req, res, next) => {
 // app.use(csrf());
 
 // === ✅ ตั้งค่า Rate Limit เพื่อป้องกันการโจมตี DDoS ====
-const limiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // time 5 min
-  max: 2000, // requests limit by IP
-  message: "Too many requests, please try again later.",
-});
-app.use(limiter);
+// const limiter = rateLimit({
+//   windowMs: 5 * 60 * 1000, // time 5 min
+//   max: 2000, // requests limit by IP
+//   message: "Too many requests, please try again later.",
+// });
+// app.use(limiter);
 
 // === Middleware Helmet ===
 app.use(helmet());
