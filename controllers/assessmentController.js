@@ -1355,7 +1355,7 @@ const updateAssessmentStatusRetryNotPassed = async (req, res) => {
       queryParam = [dateParam, supervisor_assessment_id];
     }
 
-    const [updateResult] = await pool.query(updateQuery, [queryParam]);
+    const [updateResult] = await pool.query(updateQuery, queryParam);
 
     if (updateResult.affectedRows === 0) {
       return res
