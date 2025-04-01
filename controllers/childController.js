@@ -406,20 +406,19 @@ const addChildForSupervisor = async (req, res) => {
   }
 };
 
-// function to get child data by parent_id or supervisor_id
+// function to get child data by parent_id
 const getChildData = async (req, res) => {
   let connection;
   try {
     const { parent_id } = req.query;
 
-    connection = await pool.getConnection();
-
-    // ตรวจสอบว่ามี parent_id หรือไม่
-    if (!parent_id) {
+    if (!parent_id?.trim()) {
       return res.status(400).json({ message: "parent_id is required" });
     }
 
-    // ดึงข้อมูลเด็กที่เป็นลูกของ parent
+    connection = await pool.getConnection();
+
+    // 🔹 ดึงข้อมูลเด็กที่เป็นลูกของ parent
     const query = `
       SELECT c.* 
       FROM children c 
@@ -435,23 +434,28 @@ const getChildData = async (req, res) => {
       });
     }
 
-    // ดึงข้อมูลการประเมินของเด็กแต่ละคน
+    // 🔹 ดึงข้อมูลการประเมินของเด็กแต่ละคน
     const childDataWithAssessments = await Promise.all(
       children.map(async (child) => {
         const assessmentQuery = `
-          SELECT 
-            a.assessment_id, 
-            a.assessment_rank, 
-            a.aspect, 
-            a.assessment_details_id, 
-            a.assessment_date, 
-            a.status,
-            ad.assessment_name, 
-            ad.age_range, 
-            ad.assessment_method
+          SELECT a.*
           FROM assessments a
           JOIN assessment_details ad ON a.assessment_details_id = ad.assessment_details_id
-          WHERE a.child_id = ? AND (a.status = 'in_progress' OR a.status = 'passed_all')
+          WHERE a.child_id = ?
+            AND a.assessment_id = (
+              -- ดึง assessment_id ที่ตรงตามเงื่อนไข
+              SELECT assessment_id FROM assessments sub
+              WHERE sub.child_id = a.child_id AND sub.aspect = a.aspect
+              ORDER BY 
+                -- 1️⃣ เลือก rank ต่ำสุดของ not_passed ก่อน
+                CASE WHEN sub.status = 'not_passed' THEN sub.assessment_rank END ASC,
+                -- 2️⃣ ถ้าไม่มี not_passed ให้เอา in_progress
+                CASE WHEN sub.status = 'in_progress' THEN 1 ELSE 0 END DESC,
+                -- 3️⃣ ถ้าไม่มีทั้ง not_passed และ in_progress ให้ใช้ passed_all
+                CASE WHEN sub.status = 'passed_all' THEN 1 ELSE 0 END DESC,
+                sub.assessment_date DESC
+              LIMIT 1
+            )
         `;
         const [assessmentRows] = await connection.execute(assessmentQuery, [
           child.child_id,
