@@ -343,7 +343,8 @@ const getAssessmentsByChild = async (req, res) => {
       `SELECT a.assessment_id, a.assessment_rank, a.aspect, 
               a.assessment_details_id, a.assessment_date, a.status 
        FROM assessments a 
-       WHERE a.child_id = ? AND (a.status = 'in_progress' OR a.status = 'passed_all')
+       WHERE a.child_id = ? 
+             AND (a.status = 'not_passed' OR a.status = 'in_progress' OR a.status = 'passed_all')
              AND a.assessment_rank = (
                SELECT MIN(assessment_rank) 
                FROM assessments 
