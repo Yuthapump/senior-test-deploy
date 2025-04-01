@@ -410,7 +410,7 @@ const addChildForSupervisor = async (req, res) => {
 const getChildData = async (req, res) => {
   let connection;
   try {
-    const { parent_id } = req.query; // รับเฉพาะ parent_id
+    const { parent_id } = req.query;
 
     connection = await pool.getConnection();
 

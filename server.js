@@ -92,12 +92,12 @@ app.post("/api/upload", (req, res) => {
 app.use(cookieParser());
 
 // === ✅ ป้องกันข้อมูลที่ถูกดักจับระหว่างการส่ง (MITM Attack) ===
-// app.use((req, res, next) => {
-//   if (!req.secure) {
-//     return res.redirect("https://" + req.headers.host + req.url);
-//   }
-//   next();
-// });
+app.use((req, res, next) => {
+  if (!req.secure) {
+    return res.redirect("https://" + req.headers.host + req.url);
+  }
+  next();
+});
 
 // === ปิด X-Powered-By Header เพื่อไม่ให้เปิดเผยข้อมูล Framework (เพื่อป้องกันผู้โจมตีรู้ว่าใช้ Express) ===
 // app.disable("x-powered-by");
@@ -143,7 +143,7 @@ app.get("/reset-password", (req, res) => {
 // === Routes ===
 app.use("/api/middlewares/refresh-token", refreshAccessToken);
 app.use("/api/admin", adminRoutes);
-app.use("/api/auth", authRoutes);
+app.use("/api/auth", authenticateToken, authRoutes);
 app.use("/api/profiles", profileRoutes);
 app.use("/api/childs", childRoutes);
 app.use("/api/assessments", assessmentRoutes);
