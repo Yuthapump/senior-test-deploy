@@ -285,10 +285,10 @@ const getAssessmentsAllChild = async (req, res) => {
     const query = `
       SELECT 
         a.id AS assessment_id,
-        c.childName AS child_name, -- ชื่อเด็ก
+        c.childName AS child_name, 
         a.child_id AS child_id,
         a.user_id AS evaluator_id,
-        u.username AS evaluator_name, -- ชื่อผู้ประเมิน
+        u.username AS evaluator_name, 
         a.aspect AS aspect_name,
         a.assessment_rank AS aspect_rank,
         a.assessment_date AS assessment_date,

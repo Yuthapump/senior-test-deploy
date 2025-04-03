@@ -447,11 +447,8 @@ const getChildData = async (req, res) => {
               SELECT assessment_id FROM assessments sub
               WHERE sub.child_id = a.child_id AND sub.aspect = a.aspect
               ORDER BY 
-                -- 1️⃣ เลือก rank ต่ำสุดของ not_passed ก่อน
                 CASE WHEN sub.status = 'not_passed' THEN sub.assessment_rank END ASC,
-                -- 2️⃣ ถ้าไม่มี not_passed ให้เอา in_progress
                 CASE WHEN sub.status = 'in_progress' THEN 1 ELSE 0 END DESC,
-                -- 3️⃣ ถ้าไม่มีทั้ง not_passed และ in_progress ให้ใช้ passed_all
                 CASE WHEN sub.status = 'passed_all' THEN 1 ELSE 0 END DESC,
                 sub.assessment_date DESC
               LIMIT 1
