@@ -92,18 +92,18 @@ app.post("/api/upload", (req, res) => {
 app.use(cookieParser());
 
 // === ✅ ป้องกันข้อมูลที่ถูกดักจับระหว่างการส่ง (MITM Attack) ===
-// app.use((req, res, next) => {
-//   if (req.headers["x-forwarded-proto"] !== "https") {
-//     return res.redirect("https://" + req.headers.host + req.url);
-//   }
-//   next();
-// });
+app.use((req, res, next) => {
+  if (req.headers["x-forwarded-proto"] !== "https") {
+    return res.redirect("https://" + req.headers.host + req.url);
+  }
+  next();
+});
 
 // === ปิด X-Powered-By Header เพื่อไม่ให้เปิดเผยข้อมูล Framework (เพื่อป้องกันผู้โจมตีรู้ว่าใช้ Express) ===
-// app.disable("x-powered-by");
+app.disable("x-powered-by");
 
 // === ✅ บอกให้ Express เชื่อมต่อผ่าน Proxy ===
-// app.set("trust proxy", 1);
+app.set("trust proxy", 1);
 
 // === ✅ ป้องกันการส่งคำขอโดยไม่ได้รับอนุญาตจากผู้ใช้ (CSRF Attack) ===
 // app.use(csrf());

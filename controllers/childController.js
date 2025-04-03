@@ -439,20 +439,22 @@ const getChildData = async (req, res) => {
       children.map(async (child) => {
         const assessmentQuery = `
           SELECT a.*
-          FROM assessments a
-          JOIN assessment_details ad ON a.assessment_details_id = ad.assessment_details_id
-          WHERE a.child_id = ?
-            AND a.assessment_id = (
-              -- ดึง assessment_id ที่ตรงตามเงื่อนไข
-              SELECT assessment_id FROM assessments sub
-              WHERE sub.child_id = a.child_id AND sub.aspect = a.aspect
-              ORDER BY 
-                CASE WHEN sub.status = 'not_passed' THEN sub.assessment_rank END ASC,
-                CASE WHEN sub.status = 'in_progress' THEN 1 ELSE 0 END DESC,
-                CASE WHEN sub.status = 'passed_all' THEN 1 ELSE 0 END DESC,
-                sub.assessment_date DESC
-              LIMIT 1
-            )
+FROM assessments a
+JOIN assessment_details ad ON a.assessment_details_id = ad.assessment_details_id
+WHERE a.child_id = ?
+  AND a.assessment_id = (
+    SELECT assessment_id FROM assessments sub
+    WHERE sub.child_id = a.child_id AND sub.aspect = a.aspect
+    ORDER BY 
+      (CASE WHEN sub.status = 'not_passed' THEN 0 
+            WHEN sub.status = 'in_progress' THEN 1 
+            WHEN sub.status = 'passed_all' THEN 2 
+            ELSE 3 END) ASC,
+      sub.assessment_rank ASC,
+      sub.assessment_date DESC
+    LIMIT 1
+  )
+
         `;
         const [assessmentRows] = await connection.execute(assessmentQuery, [
           child.child_id,
