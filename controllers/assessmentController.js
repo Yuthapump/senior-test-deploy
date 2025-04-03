@@ -118,6 +118,7 @@ const fetchNextAssessment = async (req, res) => {
   const { child_id, aspect } = req.params;
 
   try {
+    // อัปเดตสถานะของ assessment ที่กำลังดำเนินการให้เป็น 'passed'
     const updateQuery = `
       UPDATE assessments 
       SET status = 'passed'
@@ -131,6 +132,48 @@ const fetchNextAssessment = async (req, res) => {
         .json({ message: "ไม่พบการประเมินหรือเสร็จสิ้นแล้ว" });
     }
 
+    // ✅ ค้นหา assessment ที่ยังเป็น 'not_passed' ของเด็กใน aspect นี้
+    const notPassedQuery = `
+      SELECT * FROM assessments 
+      WHERE child_id = ? AND aspect = ? AND status = 'not_passed' 
+      ORDER BY assessment_rank ASC
+      LIMIT 1`;
+
+    const [notPassedAssessments] = await pool.query(notPassedQuery, [
+      child_id,
+      aspect,
+    ]);
+
+    // ✅ ถ้าพบ assessment 'not_passed' ให้คืนค่าการประเมินนั้นแทน
+    if (notPassedAssessments.length > 0) {
+      const notPassedAssessment = notPassedAssessments[0];
+
+      const assessmentDetailsQuery = `
+        SELECT * FROM assessment_details
+        WHERE assessment_rank = ? AND aspect = ?`;
+
+      const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
+        notPassedAssessment.assessment_rank,
+        aspect,
+      ]);
+
+      return res.status(200).json({
+        message: "กรุณาทำแบบประเมินที่ยังไม่ผ่านก่อน",
+        next_assessment: {
+          assessment_id: notPassedAssessment.assessment_id,
+          child_id,
+          user_id,
+          assessment_rank: notPassedAssessment.assessment_rank,
+          aspect: notPassedAssessment.aspect,
+          assessment_name: assessmentDetails[0]?.assessment_name || null,
+          status: "not_passed",
+          assessment_date: notPassedAssessment.assessment_date,
+          details: assessmentDetails[0] || null,
+        },
+      });
+    }
+
+    // ✅ ถ้าไม่มี 'not_passed' แล้ว ค้นหา assessment อันดับถัดไป
     const getAssessmentDetailsIdQuery = `
       SELECT assessment_details_id 
       FROM assessments 
@@ -227,7 +270,7 @@ const fetchNextAssessment = async (req, res) => {
           assessment_name: null,
           status: "passed_all",
           assessment_date: null,
-          details: null, // ไม่ต้องส่งรายละเอียดเพราะไม่มี assessment ถัดไป
+          details: null,
         },
       });
     }
@@ -473,6 +516,40 @@ const getAssessmentsForSupervisor = async (req, res) => {
           assessment_name: defaultAssessment.assessment_name,
           status: "in_progress",
           assessment_date: new Date().toISOString(),
+          details: assessmentDetails[0],
+        },
+      });
+    }
+
+    // ✅ ค้นหา `not_passed` ที่ rank ต่ำสุด
+    const notPassedQuery = `
+      SELECT a.supervisor_assessment_id, a.assessment_date, ad.assessment_rank, a.status
+      FROM assessment_supervisor a
+      JOIN ${tableName} ad ON a.assessment_details_id = ad.assessment_details_id
+      WHERE a.child_id = ? AND ad.aspect = ? AND a.status = 'not_passed'
+      ORDER BY ad.assessment_rank ASC LIMIT 1
+    `;
+    const [notPassedRows] = await pool.query(notPassedQuery, [
+      child_id,
+      aspect,
+    ]);
+
+    if (notPassedRows.length > 0) {
+      const notPassedAssessment = notPassedRows[0];
+
+      const assessmentDetailsQuery = `
+        SELECT * FROM ${tableName}
+        WHERE assessment_rank = ? AND aspect = ?
+      `;
+      const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
+        notPassedAssessment.assessment_rank,
+        aspect,
+      ]);
+
+      return res.status(200).json({
+        message: "กรุณาทำแบบประเมินที่ยังไม่ผ่านก่อน",
+        data: {
+          ...notPassedAssessment,
           details: assessmentDetails[0],
         },
       });
