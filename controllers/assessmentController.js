@@ -1239,7 +1239,10 @@ const getAssessmentsByChildHistory = async (req, res) => {
                 a.assessment_rank, a.assessment_details_id, 
                 a.assessment_date, a.status
          FROM assessment_supervisor a
-         WHERE a.child_id = ? AND a.supervisor_id = ? AND a.aspect = ?
+         WHERE a.child_id = ? 
+               AND a.supervisor_id = ? 
+               AND a.aspect = ?
+               AND a.status != 'in_progress'
          ORDER BY a.assessment_date DESC`,
         [child_id, supervisor_id, aspect]
       );
@@ -1249,7 +1252,9 @@ const getAssessmentsByChildHistory = async (req, res) => {
                 a.assessment_rank, a.assessment_details_id, 
                 a.assessment_date, a.status
          FROM assessments a
-         WHERE a.child_id = ? AND a.aspect = ?
+         WHERE a.child_id = ? 
+               AND a.aspect = ?
+               AND a.status != 'in_progress'
          ORDER BY a.assessment_date DESC`,
         [child_id, aspect]
       );
