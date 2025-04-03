@@ -117,46 +117,47 @@ const fetchNextAssessment = async (req, res) => {
   const { assessment_id, user_id } = req.body;
   const { child_id, aspect } = req.params;
 
+  const conn = await pool.getConnection(); // ใช้ Connection Pool
   try {
-    // อัปเดตสถานะของ assessment ที่กำลังดำเนินการให้เป็น 'passed'
+    await conn.beginTransaction(); // ✅ เริ่ม Transaction
+
+    // 🔹 อัปเดตสถานะของ assessment ที่กำลังดำเนินการให้เป็น 'passed'
     const updateQuery = `
       UPDATE assessments 
       SET status = 'passed'
-      WHERE assessment_id = ? AND status = 'in_progress'`;
-
-    const [updateResult] = await pool.query(updateQuery, [assessment_id]);
+      WHERE assessment_id = ? `;
+    const [updateResult] = await conn.query(updateQuery, [assessment_id]);
 
     if (updateResult.affectedRows === 0) {
+      await conn.rollback();
       return res
         .status(404)
         .json({ message: "ไม่พบการประเมินหรือเสร็จสิ้นแล้ว" });
     }
 
-    // ✅ ค้นหา assessment ที่ยังเป็น 'not_passed' ของเด็กใน aspect นี้
+    // 🔹 ค้นหา assessment ที่ยังเป็น 'not_passed' ของเด็กใน aspect นี้ (ถ้ามี)
     const notPassedQuery = `
       SELECT * FROM assessments 
       WHERE child_id = ? AND aspect = ? AND status = 'not_passed' 
       ORDER BY assessment_rank ASC
       LIMIT 1`;
-
-    const [notPassedAssessments] = await pool.query(notPassedQuery, [
+    const [notPassedAssessments] = await conn.query(notPassedQuery, [
       child_id,
       aspect,
     ]);
 
-    // ✅ ถ้าพบ assessment 'not_passed' ให้คืนค่าการประเมินนั้นแทน
     if (notPassedAssessments.length > 0) {
       const notPassedAssessment = notPassedAssessments[0];
 
       const assessmentDetailsQuery = `
         SELECT * FROM assessment_details
         WHERE assessment_rank = ? AND aspect = ?`;
-
-      const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
+      const [assessmentDetails] = await conn.query(assessmentDetailsQuery, [
         notPassedAssessment.assessment_rank,
         aspect,
       ]);
 
+      await conn.commit(); // ✅ ยืนยัน Transaction
       return res.status(200).json({
         message: "กรุณาทำแบบประเมินที่ยังไม่ผ่านก่อน",
         next_assessment: {
@@ -173,32 +174,16 @@ const fetchNextAssessment = async (req, res) => {
       });
     }
 
-    // ✅ ถ้าไม่มี 'not_passed' แล้ว ค้นหา assessment อันดับถัดไป
-    const getAssessmentDetailsIdQuery = `
-      SELECT assessment_details_id 
-      FROM assessments 
-      WHERE assessment_id = ?`;
-    const [assessmentDetailsIdResult] = await pool.query(
-      getAssessmentDetailsIdQuery,
-      [assessment_id]
-    );
-
-    if (!assessmentDetailsIdResult.length) {
-      return res.status(404).json({
-        message: "ไม่พบ assessment_details_id สำหรับ assessment_id นี้",
-      });
-    }
-
-    const assessmentDetailsId =
-      assessmentDetailsIdResult[0].assessment_details_id;
-
-    const rankQuery = `
-      SELECT assessment_rank 
-      FROM assessment_details 
-      WHERE assessment_details_id = ?`;
-    const [rankResult] = await pool.query(rankQuery, [assessmentDetailsId]);
+    // 🔹 ถ้าไม่มี 'not_passed' แล้ว ค้นหา assessment อันดับถัดไปใน Query เดียว
+    const getRankQuery = `
+      SELECT a.assessment_details_id, ad.assessment_rank 
+      FROM assessments a
+      JOIN assessment_details ad ON a.assessment_details_id = ad.assessment_details_id
+      WHERE a.assessment_id = ?`;
+    const [rankResult] = await conn.query(getRankQuery, [assessment_id]);
 
     if (!rankResult.length) {
+      await conn.rollback();
       return res.status(404).json({ message: "ไม่พบรายละเอียดการประเมิน" });
     }
 
@@ -210,17 +195,17 @@ const fetchNextAssessment = async (req, res) => {
       WHERE ad.assessment_rank > ? AND ad.aspect = ?
       ORDER BY ad.assessment_rank ASC
       LIMIT 1`;
-
-    const [nextAssessment] = await pool.query(nextAssessmentQuery, [
+    const [nextAssessment] = await conn.query(nextAssessmentQuery, [
       assessmentRank,
       aspect,
     ]);
 
     if (nextAssessment.length > 0) {
+      // 🔹 แทรก assessment อันดับถัดไป
       const insertQuery = `
         INSERT INTO assessments (child_id, assessment_details_id, assessment_rank, aspect, status, user_id)
         VALUES (?, ?, ?, ?, 'in_progress', ?)`;
-      const [result] = await pool.query(insertQuery, [
+      const [result] = await conn.query(insertQuery, [
         child_id,
         nextAssessment[0].assessment_detail_id,
         nextAssessment[0].assessment_rank,
@@ -231,11 +216,12 @@ const fetchNextAssessment = async (req, res) => {
       const assessmentDetailsQuery = `
         SELECT * FROM assessment_details
         WHERE assessment_rank = ? AND aspect = ?`;
-      const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
+      const [assessmentDetails] = await conn.query(assessmentDetailsQuery, [
         nextAssessment[0].assessment_rank,
         aspect,
       ]);
 
+      await conn.commit(); // ✅ ยืนยัน Transaction
       return res.status(201).json({
         message: "สร้างและโหลดการประเมินถัดไปสำเร็จ",
         next_assessment: {
@@ -251,13 +237,14 @@ const fetchNextAssessment = async (req, res) => {
         },
       });
     } else {
+      // 🔹 ถ้าไม่มี assessment ถัดไป เปลี่ยนสถานะเป็น 'passed_all'
       const updateLastAssessmentQuery = `
         UPDATE assessments
         SET status = 'passed_all'
         WHERE assessment_id = ?`;
+      await conn.query(updateLastAssessmentQuery, [assessment_id]);
 
-      await pool.query(updateLastAssessmentQuery, [assessment_id]);
-
+      await conn.commit(); // ✅ ยืนยัน Transaction
       return res.status(200).json({
         message:
           "ผ่านการประเมินและไม่มีการประเมินเพิ่มเติมสำหรับ aspect นี้ (passed_all)",
@@ -275,10 +262,13 @@ const fetchNextAssessment = async (req, res) => {
       });
     }
   } catch (error) {
+    await conn.rollback(); // ❌ ถ้ามีข้อผิดพลาดให้ย้อนกลับ
     console.error(error);
     return res
       .status(500)
       .json({ error: "ไม่สามารถอัปเดตสถานะหรือดึงการประเมินถัดไปได้" });
+  } finally {
+    conn.release(); // ปล่อย Connection กลับไปที่ Pool
   }
 };
 
