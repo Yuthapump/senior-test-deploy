@@ -1242,7 +1242,7 @@ const getAssessmentsByChildHistory = async (req, res) => {
          WHERE a.child_id = ? 
                AND a.supervisor_id = ? 
                AND a.aspect = ?
-               AND a.status != 'in_progress'
+               AND NOT a.status = 'in_progress'
          ORDER BY a.assessment_date DESC`,
         [child_id, supervisor_id, aspect]
       );
@@ -1254,7 +1254,7 @@ const getAssessmentsByChildHistory = async (req, res) => {
          FROM assessments a
          WHERE a.child_id = ? 
                AND a.aspect = ?
-               AND a.status != 'in_progress'
+               AND NOT a.status = 'in_progress'
          ORDER BY a.assessment_date DESC`,
         [child_id, aspect]
       );
