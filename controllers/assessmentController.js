@@ -83,6 +83,33 @@ const getAssessmentsByAspect = async (req, res) => {
       });
     }
 
+    // ✅ กรณีมี `not_passed` → ให้ประเมิน `not_passed` ก่อน
+    const notPassedAssessments = rows.filter(
+      (row) => row.status === "not_passed"
+    );
+    if (notPassedAssessments.length > 0) {
+      const lowestRankNotPassed = notPassedAssessments[0]; // ตัวที่ rank ต่ำสุด
+
+      const assessmentDetailsQuery = `
+    SELECT * FROM ${tableName}
+    WHERE assessment_rank = ? AND aspect = ?
+  `;
+      const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
+        lowestRankNotPassed.assessment_rank,
+        aspect,
+      ]);
+
+      return res.status(200).json({
+        message: "กรุณาทำแบบประเมินที่ยังไม่ผ่านก่อน",
+        data: {
+          assessment_id: lowestRankNotPassed.assessment_id,
+          assessment_date: lowestRankNotPassed.assessment_date,
+          ...lowestRankNotPassed,
+          details: assessmentDetails[0],
+        },
+      });
+    }
+
     // ✅ กรณีมี `in_progress` → คืนค่าการประเมินปัจจุบัน
     const inProgressAssessments = rows.filter(
       (row) => row.status === "in_progress"
