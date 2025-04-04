@@ -454,7 +454,6 @@ WHERE a.child_id = ?
       sub.assessment_date DESC
     LIMIT 1
   )
-
         `;
         const [assessmentRows] = await connection.execute(assessmentQuery, [
           child.child_id,
