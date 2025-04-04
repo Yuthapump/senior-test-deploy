@@ -16,7 +16,7 @@ const getAssessmentsByAspect = async (req, res) => {
     const ageInMonths = parseInt(childAgeInMonths, 10);
     const tableName = `assessment_details`;
 
-    // ✅ ค้นหา `not_passed` ที่ rank ต่ำสุด
+    // ✅ 1. ตรวจสอบ not_passed
     const notPassedQuery = `
       SELECT a.assessment_id, a.assessment_date, ad.assessment_rank, a.status
       FROM assessments a
@@ -50,7 +50,7 @@ const getAssessmentsByAspect = async (req, res) => {
       });
     }
 
-    // ✅ ค้นหา `in_progress`
+    // ✅ 2. ตรวจสอบ in_progress
     const inProgressQuery = `
       SELECT a.assessment_id, a.assessment_date, ad.assessment_rank, a.status
       FROM assessments a
@@ -84,7 +84,7 @@ const getAssessmentsByAspect = async (req, res) => {
       });
     }
 
-    // ✅ ตรวจสอบ `passed_all`
+    // ✅ 3. ตรวจสอบ passed_all
     const passedAllQuery = `
       SELECT COUNT(*) as count FROM assessments
       WHERE child_id = ? AND aspect = ? AND status = 'passed_all'
@@ -101,9 +101,59 @@ const getAssessmentsByAspect = async (req, res) => {
       });
     }
 
-    return res.status(404).json({
-      message:
-        "ไม่พบการประเมินที่อยู่ในสถานะ 'not_passed', 'in_progress' หรือ 'passed_all'",
+    // ✅ 4. ไม่พบการประเมิน → สร้างใหม่
+    const defaultQuery = `
+      SELECT assessment_details_id, aspect, assessment_rank, assessment_name, age_range
+      FROM ${tableName}
+      WHERE aspect = ?
+      ORDER BY assessment_rank ASC
+    `;
+    const [defaultAssessments] = await pool.query(defaultQuery, [aspect]);
+
+    const defaultAssessment = defaultAssessments.find((assessment) => {
+      const [start, end] = assessment.age_range.split("-").map(Number);
+      return ageInMonths >= start && ageInMonths <= end;
+    });
+
+    if (!defaultAssessment) {
+      return res
+        .status(404)
+        .json({ error: "ไม่พบข้อมูลการประเมินสำหรับช่วงอายุนี้" });
+    }
+
+    const insertQuery = `
+      INSERT INTO assessments (child_id, assessment_rank, aspect, status, user_id, assessment_details_id)
+      VALUES (?, ?, ?, 'in_progress', ?, ?)
+    `;
+    const [result] = await pool.query(insertQuery, [
+      child_id,
+      defaultAssessment.assessment_rank,
+      aspect,
+      user_id,
+      defaultAssessment.assessment_details_id,
+    ]);
+
+    const assessmentDetailsQuery = `
+      SELECT * FROM ${tableName}
+      WHERE assessment_rank = ? AND aspect = ?
+    `;
+    const [assessmentDetails] = await pool.query(assessmentDetailsQuery, [
+      defaultAssessment.assessment_rank,
+      aspect,
+    ]);
+
+    return res.status(201).json({
+      message: "เริ่มต้นการประเมินใหม่",
+      data: {
+        assessment_id: result.insertId,
+        child_id,
+        assessment_rank: defaultAssessment.assessment_rank,
+        aspect: defaultAssessment.aspect,
+        assessment_name: defaultAssessment.assessment_name,
+        status: "in_progress",
+        assessment_date: new Date().toISOString(),
+        details: assessmentDetails[0],
+      },
     });
   } catch (error) {
     console.error(error);
