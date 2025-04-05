@@ -1,5 +1,6 @@
 // assessmentController.js
 const { pool } = require("../config/db");
+const { getThaiTimestamp } = require("../utils/time.js");
 
 // ====================================================================================================================================================================================
 // For Parent
@@ -121,9 +122,11 @@ const getAssessmentsByAspect = async (req, res) => {
         .json({ error: "ไม่พบข้อมูลการประเมินสำหรับช่วงอายุนี้" });
     }
 
+    const assessment_date = getThaiTimestamp();
+
     const insertQuery = `
-      INSERT INTO assessments (child_id, assessment_rank, aspect, status, user_id, assessment_details_id)
-      VALUES (?, ?, ?, 'in_progress', ?, ?)
+      INSERT INTO assessments (child_id, assessment_rank, aspect, status, user_id, assessment_details_id, assessment_date)
+      VALUES (?, ?, ?, 'in_progress', ?, ?,?)
     `;
     const [result] = await pool.query(insertQuery, [
       child_id,
@@ -131,6 +134,7 @@ const getAssessmentsByAspect = async (req, res) => {
       aspect,
       user_id,
       defaultAssessment.assessment_details_id,
+      assessment_date,
     ]);
 
     const assessmentDetailsQuery = `
@@ -151,7 +155,7 @@ const getAssessmentsByAspect = async (req, res) => {
         aspect: defaultAssessment.aspect,
         assessment_name: defaultAssessment.assessment_name,
         status: "in_progress",
-        assessment_date: new Date().toISOString(),
+        assessment_date,
         details: assessmentDetails[0],
       },
     });
@@ -174,9 +178,12 @@ const fetchNextAssessment = async (req, res) => {
     // 🔹 อัปเดตสถานะของ assessment ที่กำลังดำเนินการให้เป็น 'passed'
     const updateQuery = `
       UPDATE assessments 
-      SET status = 'passed'
+      SET status = 'passed', assessment_date = ?
       WHERE assessment_id = ? `;
-    const [updateResult] = await conn.query(updateQuery, [assessment_id]);
+    const [updateResult] = await conn.query(updateQuery, [
+      getThaiTimestamp(),
+      assessment_id,
+    ]);
 
     if (updateResult.affectedRows === 0) {
       await conn.rollback();
@@ -218,7 +225,7 @@ const fetchNextAssessment = async (req, res) => {
           aspect: notPassedAssessment.aspect,
           assessment_name: assessmentDetails[0]?.assessment_name || null,
           status: "not_passed",
-          assessment_date: notPassedAssessment.assessment_date,
+          assessment_date: getThaiTimestamp(),
           details: assessmentDetails[0] || null,
         },
       });
@@ -251,16 +258,19 @@ const fetchNextAssessment = async (req, res) => {
     ]);
 
     if (nextAssessment.length > 0) {
+      const assessment_date = getThaiTimestamp();
+
       // 🔹 แทรก assessment อันดับถัดไป
       const insertQuery = `
-        INSERT INTO assessments (child_id, assessment_details_id, assessment_rank, aspect, status, user_id)
-        VALUES (?, ?, ?, ?, 'in_progress', ?)`;
+        INSERT INTO assessments (child_id, assessment_details_id, assessment_rank, aspect, status, user_id, assessment_date)
+        VALUES (?, ?, ?, ?, 'in_progress', ?, ?)`;
       const [result] = await conn.query(insertQuery, [
         child_id,
         nextAssessment[0].assessment_detail_id,
         nextAssessment[0].assessment_rank,
         aspect,
         user_id,
+        assessment_date,
       ]);
 
       const assessmentDetailsQuery = `
@@ -282,7 +292,7 @@ const fetchNextAssessment = async (req, res) => {
           aspect: nextAssessment[0].aspect,
           assessment_name: nextAssessment[0].assessment_name,
           status: "in_progress",
-          assessment_date: new Date().toISOString(),
+          assessment_date,
           details: assessmentDetails[0],
         },
       });
@@ -290,9 +300,12 @@ const fetchNextAssessment = async (req, res) => {
       // 🔹 ถ้าไม่มี assessment ถัดไป เปลี่ยนสถานะเป็น 'passed_all'
       const updateLastAssessmentQuery = `
         UPDATE assessments
-        SET status = 'passed_all'
+        SET status = 'passed_all', assessment_date = ?
         WHERE assessment_id = ?`;
-      await conn.query(updateLastAssessmentQuery, [assessment_id]);
+      await conn.query(updateLastAssessmentQuery, [
+        getThaiTimestamp(),
+        assessment_id,
+      ]);
 
       await conn.commit(); // ✅ ยืนยัน Transaction
       return res.status(200).json({
@@ -456,10 +469,13 @@ const updateAssessmentStatus = async (req, res) => {
   try {
     const updateQuery = `
       UPDATE assessments
-      SET status = 'not_passed'
+      SET status = 'not_passed', assessment_date = ? 
       WHERE assessment_id = ? AND status = 'in_progress'`;
 
-    const [updateResult] = await pool.query(updateQuery, [assessment_id]);
+    const [updateResult] = await pool.query(updateQuery, [
+      getThaiTimestamp(),
+      assessment_id,
+    ]);
 
     if (updateResult.affectedRows === 0) {
       return res.status(200).json({
@@ -525,9 +541,11 @@ const getAssessmentsForSupervisor = async (req, res) => {
           .json({ error: "ไม่พบข้อมูลการประเมินสำหรับด้านที่ระบุ" });
       }
 
+      const assessment_date = getThaiTimestamp();
+
       const insertQuery = `
-        INSERT INTO assessment_supervisor (child_id, assessment_rank, aspect, status, supervisor_id, assessment_details_id)
-        VALUES (?, ?, ?, 'in_progress', ?, ?)
+        INSERT INTO assessment_supervisor (child_id, assessment_rank, aspect, status, supervisor_id, assessment_details_id, assessment_date)
+        VALUES (?, ?, ?, 'in_progress', ?, ?, ?)
       `;
       const [result] = await pool.query(insertQuery, [
         child_id,
@@ -535,6 +553,7 @@ const getAssessmentsForSupervisor = async (req, res) => {
         aspect,
         supervisor_id,
         defaultAssessment.assessment_details_id,
+        assessment_date,
       ]);
 
       const assessmentDetailsQuery = `
@@ -555,7 +574,7 @@ const getAssessmentsForSupervisor = async (req, res) => {
           aspect: defaultAssessment.aspect,
           assessment_name: defaultAssessment.assessment_name,
           status: "in_progress",
-          assessment_date: new Date().toISOString(),
+          assessment_date,
           details: assessmentDetails[0],
         },
       });
@@ -691,7 +710,7 @@ const getAssessmentsForSupervisor = async (req, res) => {
   }
 };
 
-const updateSupervisorAssessment = async (req, res) => {
+const updateSupervisorAssessmentNotPassed = async (req, res) => {
   const { supervisor_assessment_id } = req.params;
 
   if (!supervisor_assessment_id) {
@@ -721,9 +740,9 @@ const updateSupervisorAssessment = async (req, res) => {
     // ✅ 3. อัปเดตสถานะเป็น 'not_passed'
     const [updateResult] = await connection.query(
       `UPDATE assessment_supervisor 
-       SET status = "not_passed", assessment_date = NOW() 
+       SET status = "not_passed", assessment_date = ? 
        WHERE supervisor_assessment_id = ?`,
-      [supervisor_assessment_id]
+      [getThaiTimestamp(), supervisor_assessment_id]
     );
 
     connection.release();
@@ -757,10 +776,11 @@ const fetchNextAssessmentSupervisor = async (req, res) => {
     // ✅ อัปเดตการประเมินปัจจุบันเป็น 'passed'
     const updateQuery = `
       UPDATE assessment_supervisor
-      SET status = 'passed'
+      SET status = 'passed' , assessment_date = ?
       WHERE supervisor_assessment_id = ? AND (status = 'in_progress' OR status = 'not_passed')
     `;
     const [updateResult] = await pool.query(updateQuery, [
+      getThaiTimestamp(),
       supervisor_assessment_id,
     ]);
 
@@ -803,7 +823,7 @@ const fetchNextAssessmentSupervisor = async (req, res) => {
           aspect: notPassedAssessment.aspect,
           assessment_name: assessmentDetails[0]?.assessment_name || null,
           status: "not_passed",
-          assessment_date: notPassedAssessment.assessment_date,
+          assessment_date: getThaiTimestamp(),
           details: assessmentDetails[0] || null,
         },
       });
@@ -843,14 +863,15 @@ const fetchNextAssessmentSupervisor = async (req, res) => {
     if (nextAssessment.length > 0) {
       // ✅ สร้าง assessment ถัดไปเป็น `in_progress`
       const insertQuery = `
-        INSERT INTO assessment_supervisor (child_id, assessment_details_id, assessment_rank, aspect, status, supervisor_id)
-        VALUES (?, ?, ?, ?, 'in_progress', ?)`;
+        INSERT INTO assessment_supervisor (child_id, assessment_details_id, assessment_rank, aspect, status, supervisor_id, assessment_date)
+        VALUES (?, ?, ?, ?, 'in_progress', ?, ?)`;
       const [result] = await pool.query(insertQuery, [
         child_id,
         nextAssessment[0].assessment_detail_id,
         nextAssessment[0].assessment_rank,
         aspect,
         supervisor_id,
+        getThaiTimestamp(),
       ]);
 
       // ✅ ดึงรายละเอียดของ assessment ใหม่
@@ -872,7 +893,7 @@ const fetchNextAssessmentSupervisor = async (req, res) => {
           aspect: nextAssessment[0].aspect,
           assessment_name: nextAssessment[0].assessment_name,
           status: "in_progress",
-          assessment_date: new Date().toISOString(),
+          assessment_date: getThaiTimestamp(),
           details: assessmentDetails[0],
         },
       });
@@ -880,9 +901,12 @@ const fetchNextAssessmentSupervisor = async (req, res) => {
       // ✅ ถ้าไม่มี assessment ถัดไป → อัปเดตเป็น `passed_all`
       const updateLastAssessmentQuery = `
         UPDATE assessment_supervisor
-        SET status = 'passed_all'
+        SET status = 'passed_all', assessment_date = ?
         WHERE supervisor_assessment_id = ?`;
-      await pool.query(updateLastAssessmentQuery, [supervisor_assessment_id]);
+      await pool.query(updateLastAssessmentQuery, [
+        getThaiTimestamp(),
+        supervisor_assessment_id,
+      ]);
 
       return res.status(200).json({
         message:
@@ -895,7 +919,7 @@ const fetchNextAssessmentSupervisor = async (req, res) => {
           aspect,
           assessment_name: null,
           status: "passed_all",
-          assessment_date: null,
+          assessment_date: getThaiTimestamp(),
           details: null,
         },
       });
@@ -915,10 +939,11 @@ const updateAssessmentStatusNotPassed = async (req, res) => {
     // ✅ อัปเดตสถานะเป็น 'not_passed'
     const updateQuery = `
       UPDATE assessment_supervisor
-      SET status = 'not_passed'
+      SET status = 'not_passed', assessment_date = ?
       WHERE supervisor_assessment_id = ? AND status = 'in_progress'
     `;
     const [updateResult] = await pool.query(updateQuery, [
+      getThaiTimestamp(),
       supervisor_assessment_id,
     ]);
 
@@ -932,6 +957,7 @@ const updateAssessmentStatusNotPassed = async (req, res) => {
       message: "อัปเดตสถานะการประเมินเป็น 'not_passed' สำเร็จ",
       supervisor_assessment_id,
       new_status: "not_passed",
+      assessment_date: getThaiTimestamp(),
     });
   } catch (error) {
     console.error("Error updating assessment status to 'not_passed':", error);
@@ -1450,7 +1476,7 @@ const updateAssessmentStatusRetryNotPassed = async (req, res) => {
 
     let updateQuery = "";
     let queryParam = "";
-    let dateParam = new Date();
+    let dateParam = getThaiTimestamp();
 
     if (assessment_id) {
       updateQuery = `
@@ -1489,7 +1515,7 @@ module.exports = {
   updateAssessmentStatus,
   fetchNextAssessment,
   getAssessmentsForSupervisor,
-  updateSupervisorAssessment,
+  updateSupervisorAssessmentNotPassed,
   fetchNextAssessmentSupervisor,
   getSupervisorAssessmentsAllData,
   getAssessmentsAllChild,

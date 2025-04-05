@@ -170,4 +170,4 @@ app.listen(port, () => {
   console.log("Ready for commands, Sir'Benz!");
 });
 
-module.exports = upload;
+module.exports = { upload };

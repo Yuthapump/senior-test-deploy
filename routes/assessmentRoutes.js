@@ -43,7 +43,7 @@ router.get(
 // Route to update assessment status
 router.post(
   "/assessments-update-status-supervisor/:child_id/:aspect",
-  assessmentController.updateSupervisorAssessment
+  assessmentController.updateSupervisorAssessmentNotPassed
 );
 
 // Route to fetch the next assessment
