@@ -1431,7 +1431,7 @@ const updateAssessmentStatusRetryPassed = async (req, res) => {
 
     let updateQuery = "";
     let queryParam = "";
-    let dateParam = new Date();
+    let dateParam = getThaiTimestamp();
 
     if (assessment_id) {
       updateQuery = `
